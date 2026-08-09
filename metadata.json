@@ -1,0 +1,6 @@
+{
+  "name": "SuperMercado Express",
+  "description": "Sistema de ventas para supermercado — Módulo 1 (Usuarios), Módulo 2 (Productos), Módulo 3 (Inventario), Módulo 4 (Ventas POS), Módulo 5 (Reportes) y Módulo 6 (Panel de Estadísticas - Dashboard).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
