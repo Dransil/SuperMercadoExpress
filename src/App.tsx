@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Employee, Product, InventoryMovement, MovementType, ToastMessage, Sale, ShiftClosure, UserRole } from './types';
 import { INITIAL_USERS, INITIAL_EMPLOYEES, INITIAL_PRODUCTS, INITIAL_INVENTORY_MOVEMENTS, INITIAL_SALES } from './data/mockData';
 import { Login } from './components/Login';
@@ -14,6 +14,23 @@ import { ReportsModule } from './components/ReportsModule';
 import { StatsDashboard } from './components/StatsDashboard';
 import { ShiftClosureModule } from './components/ShiftClosureModule';
 import { UserProfileModal } from './components/UserProfileModal';
+import { SupabaseModal } from './components/SupabaseModal';
+import {
+  fetchProductsFromSupabase,
+  fetchUsersFromSupabase,
+  fetchEmployeesFromSupabase,
+  fetchSalesFromSupabase,
+  fetchMovementsFromSupabase,
+  fetchShiftClosuresFromSupabase,
+  ensureAdminInSupabase,
+  saveProductToSupabase,
+  deleteProductFromSupabase,
+  saveSaleToSupabase,
+  saveMovementToSupabase,
+  saveShiftClosureToSupabase,
+  saveUserToSupabase,
+  saveEmployeeToSupabase,
+} from './lib/supabase';
 import { CheckCircle2, AlertCircle, Info, ShieldAlert } from 'lucide-react';
 
 export default function App() {
@@ -27,7 +44,73 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>('inicio');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Load all tables from Supabase on mount
+  useEffect(() => {
+    const loadSupabaseData = async () => {
+      try {
+        // Ensure Admin user is saved in Supabase
+        await ensureAdminInSupabase();
+
+        // Fetch tables from Supabase
+        const [
+          dbUsers,
+          dbEmployees,
+          dbProducts,
+          dbSales,
+          dbMovements,
+          dbClosures,
+        ] = await Promise.all([
+          fetchUsersFromSupabase(),
+          fetchEmployeesFromSupabase(),
+          fetchProductsFromSupabase(),
+          fetchSalesFromSupabase(),
+          fetchMovementsFromSupabase(),
+          fetchShiftClosuresFromSupabase(),
+        ]);
+
+        if (dbUsers && dbUsers.length > 0) {
+          setUsers(dbUsers);
+        }
+        if (dbEmployees && dbEmployees.length > 0) {
+          setEmployees(dbEmployees);
+        }
+        setProducts(dbProducts || []);
+        setSales(dbSales || []);
+        setMovements(dbMovements || []);
+        setShiftClosures(dbClosures || []);
+      } catch (err) {
+        console.warn('Supabase data load error:', err);
+      }
+    };
+
+    loadSupabaseData();
+  }, []);
+
+  // Sync state to Supabase bulk handler
+  const handleSyncAllData = async () => {
+    for (const prod of products) {
+      await saveProductToSupabase(prod);
+    }
+    for (const sale of sales) {
+      await saveSaleToSupabase(sale);
+    }
+    for (const mov of movements) {
+      await saveMovementToSupabase(mov);
+    }
+    for (const closure of shiftClosures) {
+      await saveShiftClosureToSupabase(closure);
+    }
+    for (const user of users) {
+      await saveUserToSupabase(user);
+    }
+    for (const emp of employees) {
+      await saveEmployeeToSupabase(emp);
+    }
+    addToast('Sincronización completa con Supabase realizada exitosamente.', 'success');
+  };
 
   // Shift Closure Save Handler
   const handleSaveShiftClosure = (newClosure: ShiftClosure) => {
@@ -37,7 +120,9 @@ export default function App() {
         (c) => !(c.cashierId === newClosure.cashierId && c.date === newClosure.date)
       ),
     ]);
+    saveShiftClosureToSupabase(newClosure);
   };
+
 
   // Toast Helper
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -96,13 +181,16 @@ export default function App() {
       id: `emp-${String(employees.length + 1).padStart(3, '0')}`,
     };
     setEmployees((prev) => [newEmployee, ...prev]);
+    saveEmployeeToSupabase(newEmployee);
     addToast(`Empleado "${newEmployee.fullName}" registrado exitosamente.`, 'success');
   };
 
   const handleUpdateEmployee = (id: string, updatedData: Omit<Employee, 'id'>) => {
+    const updatedEmp = { ...updatedData, id };
     setEmployees((prev) =>
-      prev.map((emp) => (emp.id === id ? { ...updatedData, id } : emp))
+      prev.map((emp) => (emp.id === id ? updatedEmp : emp))
     );
+    saveEmployeeToSupabase(updatedEmp);
     addToast('Información del empleado actualizada correctamente.', 'success');
   };
 
@@ -119,16 +207,19 @@ export default function App() {
       id: `prod-${String(products.length + 1).padStart(3, '0')}`,
     };
     setProducts((prev) => [newProduct, ...prev]);
+    saveProductToSupabase(newProduct);
   };
 
   const handleUpdateProduct = (updatedProduct: Product) => {
     setProducts((prev) =>
       prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
     );
+    saveProductToSupabase(updatedProduct);
   };
 
   const handleDeleteProduct = (id: string) => {
     setProducts((prev) => prev.filter((p) => p.id !== id));
+    deleteProductFromSupabase(id);
   };
 
   // Inventory Movements Handler (Módulo 3: Inventario)
@@ -146,9 +237,11 @@ export default function App() {
     const previousStock = targetProduct.stock;
 
     // Update product stock
+    const updatedProd = { ...targetProduct, stock: newStock };
     setProducts((prev) =>
-      prev.map((p) => (p.id === productId ? { ...p, stock: newStock } : p))
+      prev.map((p) => (p.id === productId ? updatedProd : p))
     );
+    saveProductToSupabase(updatedProd);
 
     // Create movement record
     const now = new Date();
@@ -177,6 +270,7 @@ export default function App() {
     };
 
     setMovements((prev) => [newMovement, ...prev]);
+    saveMovementToSupabase(newMovement);
 
     addToast(
       `Movimiento de ${movementType === 'entrada' ? 'entrada' : 'ajuste'} registrado para "${
@@ -206,7 +300,9 @@ export default function App() {
         const itemSold = completedSale.items.find((it) => it.productId === p.id);
         if (itemSold) {
           const updatedStock = Math.max(0, p.stock - itemSold.quantity);
-          return { ...p, stock: updatedStock };
+          const updatedProd = { ...p, stock: updatedStock };
+          saveProductToSupabase(updatedProd);
+          return updatedProd;
         }
         return p;
       })
@@ -218,7 +314,7 @@ export default function App() {
       const prevStock = targetProd ? targetProd.stock : item.stockAvailable;
       const newStock = Math.max(0, prevStock - item.quantity);
 
-      return {
+      const mov: InventoryMovement = {
         id: `mov-vta-${completedSale.id}-${idx + 1}`,
         productId: item.productId,
         productCode: item.code,
@@ -233,12 +329,15 @@ export default function App() {
         userId: completedSale.cashierId,
         userName: completedSale.cashierName,
       };
+      saveMovementToSupabase(mov);
+      return mov;
     });
 
     setMovements((prev) => [...newMovements, ...prev]);
 
     // 3. Save sale
     setSales((prev) => [completedSale, ...prev]);
+    saveSaleToSupabase(completedSale);
   };
 
   // User Registration Handler (from Login page)
@@ -295,6 +394,9 @@ export default function App() {
     setEmployees((prev) => [newEmployee, ...prev]);
     setUsers((prev) => [newUser, ...prev]);
 
+    saveEmployeeToSupabase(newEmployee);
+    saveUserToSupabase(newUser);
+
     addToast('Solicitud de registro enviada. Un Administrador debe autorizar su acceso.', 'info');
 
     return {
@@ -306,29 +408,31 @@ export default function App() {
   // User Registration Authorization Handler (by Admin)
   const handleAuthorizeUser = (employeeId: string, assignedRole: UserRole) => {
     // 1. Update Employee
-    setEmployees((prev) =>
-      prev.map((emp) =>
-        emp.id === employeeId
-          ? {
-              ...emp,
-              status: 'activo',
-              role: assignedRole,
-              cargo: emp.cargo || (assignedRole === 'admin' ? 'Administrador' : 'Cajero'),
-            }
-          : emp
-      )
-    );
+    const targetEmp = employees.find((e) => e.id === employeeId);
+    if (targetEmp) {
+      const updatedEmp: Employee = {
+        ...targetEmp,
+        status: 'activo',
+        role: assignedRole,
+        cargo: targetEmp.cargo || (assignedRole === 'admin' ? 'Administrador' : 'Cajero'),
+      };
+      setEmployees((prev) =>
+        prev.map((emp) => (emp.id === employeeId ? updatedEmp : emp))
+      );
+      saveEmployeeToSupabase(updatedEmp);
+    }
 
     // 2. Update linked User
-    const targetEmp = employees.find((e) => e.id === employeeId);
     setUsers((prev) =>
       prev.map((u) => {
         if (u.employeeId === employeeId || (targetEmp && u.email.toLowerCase() === targetEmp.email.toLowerCase())) {
-          return {
+          const updatedUser = {
             ...u,
-            status: 'activo',
+            status: 'activo' as const,
             role: assignedRole,
           };
+          saveUserToSupabase(updatedUser);
+          return updatedUser;
         }
         return u;
       })
@@ -345,19 +449,22 @@ export default function App() {
   // User Registration Rejection Handler (by Admin)
   const handleRejectUser = (employeeId: string) => {
     // 1. Update Employee
-    setEmployees((prev) =>
-      prev.map((emp) => (emp.id === employeeId ? { ...emp, status: 'rechazado' } : emp))
-    );
+    const targetEmp = employees.find((e) => e.id === employeeId);
+    if (targetEmp) {
+      const updatedEmp: Employee = { ...targetEmp, status: 'rechazado' };
+      setEmployees((prev) =>
+        prev.map((emp) => (emp.id === employeeId ? updatedEmp : emp))
+      );
+      saveEmployeeToSupabase(updatedEmp);
+    }
 
     // 2. Update linked User
-    const targetEmp = employees.find((e) => e.id === employeeId);
     setUsers((prev) =>
       prev.map((u) => {
         if (u.employeeId === employeeId || (targetEmp && u.email.toLowerCase() === targetEmp.email.toLowerCase())) {
-          return {
-            ...u,
-            status: 'rechazado',
-          };
+          const updatedUser = { ...u, status: 'rechazado' as const };
+          saveUserToSupabase(updatedUser);
+          return updatedUser;
         }
         return u;
       })
@@ -455,6 +562,7 @@ export default function App() {
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
           onLogout={handleLogout}
           onOpenProfile={() => setIsProfileModalOpen(true)}
+          onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         />
 
         {/* Page Body View Router */}
@@ -603,6 +711,13 @@ export default function App() {
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
         onChangePassword={handleChangePassword}
+      />
+
+      {/* Supabase Integration Modal */}
+      <SupabaseModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
+        onSyncAllData={handleSyncAllData}
       />
 
       {/* Global Toast Notifications */}

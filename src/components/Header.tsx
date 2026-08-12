@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserRole } from '../types';
-import { Menu, LogOut, ShieldCheck, UserCheck } from 'lucide-react';
+import { Menu, LogOut, ShieldCheck, UserCheck, Database } from 'lucide-react';
 
 interface HeaderProps {
   title: string;
@@ -10,6 +10,7 @@ interface HeaderProps {
   onOpenMobileSidebar: () => void;
   onLogout: () => void;
   onOpenProfile: () => void;
+  onOpenSupabaseModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,6 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenMobileSidebar,
   onLogout,
   onOpenProfile,
+  onOpenSupabaseModal,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 lg:px-8 h-16 flex items-center justify-between shadow-xs">
@@ -40,12 +42,21 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right side: User Badge + Logout */}
-      <div className="flex items-center gap-3 sm:gap-4">
-        <div className="hidden md:flex items-center gap-2 text-xs font-medium text-slate-500 mr-2">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Sistema Activo
-          </span>
+      {/* Right side: Supabase Badge + User Badge + Logout */}
+      <div className="flex items-center gap-2 sm:gap-3">
+        {onOpenSupabaseModal && (
+          <button
+            onClick={onOpenSupabaseModal}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full text-xs font-bold transition-all cursor-pointer shadow-2xs"
+            title="Ver configuración e integración de Supabase"
+          >
+            <Database className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Supabase</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          </button>
+        )}
+
+        <div className="hidden md:flex items-center gap-2 text-xs font-medium text-slate-500 mr-1">
           <span className="text-slate-300">|</span>
           <span>{new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
         </div>
@@ -89,3 +100,4 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+

@@ -1,0 +1,456 @@
+import { createClient } from '@supabase/supabase-js';
+import { User, Employee, Product, InventoryMovement, Sale, ShiftClosure } from '../types';
+import { INITIAL_USERS, INITIAL_EMPLOYEES } from '../data/mockData';
+
+// Supabase Project Credentials provided by user
+export const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL || 'https://xdakviiciioxedhqemmz.supabase.co';
+
+export const SUPABASE_ANON_KEY =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkYWt2aWljaWlveGVkaHFlbW16Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1MDU4ODQsImV4cCI6MjEwMjA4MTg4NH0.X7K3WHiOyvBu68Rc_GQaprZnd5YWJCHbaJq-lWsGyJ4';
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/**
+ * Check if connection to Supabase is active
+ */
+export async function checkSupabaseConnection(): Promise<{ connected: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.from('users').select('id').limit(1);
+    if (error) {
+      if (error.message?.includes('relation "public.users" does not exist') || error.code === '42P01') {
+        return { connected: false, error: 'Tablas no creadas en Supabase. Ejecuta el script SQL.' };
+      }
+      return { connected: false, error: error.message };
+    }
+    return { connected: true };
+  } catch (err: any) {
+    return { connected: false, error: err?.message || 'Error de conexión' };
+  }
+}
+
+/**
+ * SQL Script generator for Supabase SQL Editor
+ */
+export const SUPABASE_SQL_SCHEMA = `-- ESQUEMA DE BASE DE DATOS SUPABASE PARA SUPERMERCADO POS
+
+-- 1. Tabla de Usuarios
+CREATE TABLE IF NOT EXISTS public.users (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'cajero',
+  avatar TEXT,
+  document_id TEXT,
+  employee_id TEXT,
+  password TEXT,
+  status TEXT DEFAULT 'activo',
+  phone TEXT,
+  address TEXT,
+  birth_date TEXT,
+  hire_date TEXT,
+  cargo TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Tabla de Empleados
+CREATE TABLE IF NOT EXISTS public.employees (
+  id TEXT PRIMARY KEY,
+  full_name TEXT NOT NULL,
+  document_id TEXT NOT NULL,
+  phone TEXT,
+  address TEXT,
+  email TEXT,
+  birth_date TEXT,
+  hire_date TEXT,
+  role TEXT NOT NULL DEFAULT 'cajero',
+  photo TEXT,
+  status TEXT DEFAULT 'activo',
+  cargo TEXT,
+  registration_date TEXT,
+  user_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. Tabla de Productos
+CREATE TABLE IF NOT EXISTS public.products (
+  id TEXT PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  category TEXT,
+  brand TEXT,
+  selling_unit TEXT,
+  purchase_price NUMERIC(10,2) DEFAULT 0,
+  sale_price NUMERIC(10,2) DEFAULT 0,
+  status TEXT DEFAULT 'activo',
+  image TEXT,
+  stock NUMERIC(10,2) DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. Tabla de Movimientos de Inventario
+CREATE TABLE IF NOT EXISTS public.inventory_movements (
+  id TEXT PRIMARY KEY,
+  product_id TEXT NOT NULL,
+  product_code TEXT,
+  product_name TEXT,
+  product_image TEXT,
+  movement_type TEXT NOT NULL,
+  quantity NUMERIC(10,2) NOT NULL,
+  previous_stock NUMERIC(10,2) NOT NULL,
+  new_stock NUMERIC(10,2) NOT NULL,
+  reason TEXT,
+  date TEXT NOT NULL,
+  user_id TEXT,
+  user_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. Tabla de Ventas
+CREATE TABLE IF NOT EXISTS public.sales (
+  id TEXT PRIMARY KEY,
+  date TEXT NOT NULL,
+  cashier_id TEXT NOT NULL,
+  cashier_name TEXT NOT NULL,
+  items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  subtotal NUMERIC(10,2) NOT NULL,
+  discount NUMERIC(10,2) DEFAULT 0,
+  total NUMERIC(10,2) NOT NULL,
+  payment_method TEXT NOT NULL,
+  amount_tendered NUMERIC(10,2),
+  change_given NUMERIC(10,2),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 6. Tabla de Cierres de Jornada
+CREATE TABLE IF NOT EXISTS public.shift_closures (
+  id TEXT PRIMARY KEY,
+  date TEXT NOT NULL,
+  cashier_id TEXT NOT NULL,
+  cashier_name TEXT NOT NULL,
+  sales_count INT DEFAULT 0,
+  total_sales NUMERIC(10,2) DEFAULT 0,
+  cash_total NUMERIC(10,2) DEFAULT 0,
+  card_total NUMERIC(10,2) DEFAULT 0,
+  transfer_total NUMERIC(10,2) DEFAULT 0,
+  declared_cash NUMERIC(10,2) DEFAULT 0,
+  expected_cash NUMERIC(10,2) DEFAULT 0,
+  difference NUMERIC(10,2) DEFAULT 0,
+  status TEXT NOT NULL,
+  closed_at TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Deshabilitar RLS temporalmente para permitir lecturas/escrituras desde la clave anon
+ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.employees DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_movements DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sales DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shift_closures DISABLE ROW LEVEL SECURITY;
+`;
+
+// Fetchers from Supabase
+
+export async function fetchProductsFromSupabase(): Promise<Product[]> {
+  try {
+    const { data, error } = await supabase.from('products').select('*');
+    if (error || !data) return [];
+    return data.map((item: any) => ({
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      description: item.description || '',
+      category: item.category || 'General',
+      brand: item.brand || '',
+      sellingUnit: item.selling_unit || 'Unidad',
+      purchasePrice: Number(item.purchase_price) || 0,
+      salePrice: Number(item.sale_price) || 0,
+      status: item.status || 'activo',
+      image: item.image || '',
+      stock: Number(item.stock) || 0,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchUsersFromSupabase(): Promise<(User & { password: string })[]> {
+  try {
+    const { data, error } = await supabase.from('users').select('*');
+    if (error || !data || data.length === 0) return [];
+    return data.map((item: any) => ({
+      id: item.id,
+      username: item.username,
+      email: item.email,
+      password: item.password || 'admin123',
+      name: item.name,
+      role: item.role,
+      avatar: item.avatar || '',
+      documentId: item.document_id || '',
+      employeeId: item.employee_id || '',
+      status: item.status || 'activo',
+      phone: item.phone || '',
+      address: item.address || '',
+      birthDate: item.birth_date || '',
+      hireDate: item.hire_date || '',
+      cargo: item.cargo || '',
+      createdAt: item.created_at || '',
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchEmployeesFromSupabase(): Promise<Employee[]> {
+  try {
+    const { data, error } = await supabase.from('employees').select('*');
+    if (error || !data || data.length === 0) return [];
+    return data.map((item: any) => ({
+      id: item.id,
+      fullName: item.full_name,
+      documentId: item.document_id,
+      phone: item.phone || '',
+      address: item.address || '',
+      email: item.email || '',
+      birthDate: item.birth_date || '',
+      hireDate: item.hire_date || '',
+      role: item.role || 'cajero',
+      photo: item.photo || '',
+      status: item.status || 'activo',
+      cargo: item.cargo || '',
+      registrationDate: item.registration_date || '',
+      userId: item.user_id || '',
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchSalesFromSupabase(): Promise<Sale[]> {
+  try {
+    const { data, error } = await supabase.from('sales').select('*').order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data.map((item: any) => ({
+      id: item.id,
+      date: item.date,
+      cashierId: item.cashier_id,
+      cashierName: item.cashier_name,
+      items: item.items || [],
+      subtotal: Number(item.subtotal) || 0,
+      discount: Number(item.discount) || 0,
+      total: Number(item.total) || 0,
+      paymentMethod: item.payment_method,
+      amountTendered: item.amount_tendered ? Number(item.amount_tendered) : undefined,
+      changeGiven: item.change_given ? Number(item.change_given) : undefined,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchMovementsFromSupabase(): Promise<InventoryMovement[]> {
+  try {
+    const { data, error } = await supabase.from('inventory_movements').select('*').order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data.map((item: any) => ({
+      id: item.id,
+      productId: item.product_id,
+      productCode: item.product_code || '',
+      productName: item.product_name || '',
+      productImage: item.product_image || '',
+      movementType: item.movement_type,
+      quantity: Number(item.quantity) || 0,
+      previousStock: Number(item.previous_stock) || 0,
+      newStock: Number(item.new_stock) || 0,
+      reason: item.reason || '',
+      date: item.date,
+      userId: item.user_id || '',
+      userName: item.user_name || '',
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchShiftClosuresFromSupabase(): Promise<ShiftClosure[]> {
+  try {
+    const { data, error } = await supabase.from('shift_closures').select('*').order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data.map((item: any) => ({
+      id: item.id,
+      date: item.date,
+      cashierId: item.cashier_id,
+      cashierName: item.cashier_name,
+      salesCount: item.sales_count || 0,
+      totalSales: Number(item.total_sales) || 0,
+      cashTotal: Number(item.cash_total) || 0,
+      cardTotal: Number(item.card_total) || 0,
+      transferTotal: Number(item.transfer_total) || 0,
+      declaredCash: Number(item.declared_cash) || 0,
+      expectedCash: Number(item.expected_cash) || 0,
+      difference: Number(item.difference) || 0,
+      status: item.status,
+      closedAt: item.closed_at,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// Savers to Supabase
+
+export async function saveProductToSupabase(product: Product): Promise<void> {
+  try {
+    await supabase.from('products').upsert({
+      id: product.id,
+      code: product.code,
+      name: product.name,
+      description: product.description,
+      category: product.category,
+      brand: product.brand,
+      selling_unit: product.sellingUnit,
+      purchase_price: product.purchasePrice,
+      sale_price: product.salePrice,
+      status: product.status,
+      image: product.image,
+      stock: product.stock,
+      updated_at: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.warn('Error syncing product to Supabase:', e);
+  }
+}
+
+export async function deleteProductFromSupabase(productId: string): Promise<void> {
+  try {
+    await supabase.from('products').delete().eq('id', productId);
+  } catch (e) {
+    console.warn('Error deleting product from Supabase:', e);
+  }
+}
+
+export async function saveSaleToSupabase(sale: Sale): Promise<void> {
+  try {
+    await supabase.from('sales').insert({
+      id: sale.id,
+      date: sale.date,
+      cashier_id: sale.cashierId,
+      cashier_name: sale.cashierName,
+      items: sale.items,
+      subtotal: sale.subtotal,
+      discount: sale.discount,
+      total: sale.total,
+      payment_method: sale.paymentMethod,
+      amount_tendered: sale.amountTendered,
+      change_given: sale.changeGiven,
+    });
+  } catch (e) {
+    console.warn('Error saving sale to Supabase:', e);
+  }
+}
+
+export async function saveMovementToSupabase(movement: InventoryMovement): Promise<void> {
+  try {
+    await supabase.from('inventory_movements').insert({
+      id: movement.id,
+      product_id: movement.productId,
+      product_code: movement.productCode,
+      product_name: movement.productName,
+      product_image: movement.productImage,
+      movement_type: movement.movementType,
+      quantity: movement.quantity,
+      previous_stock: movement.previousStock,
+      new_stock: movement.newStock,
+      reason: movement.reason,
+      date: movement.date,
+      user_id: movement.userId,
+      user_name: movement.userName,
+    });
+  } catch (e) {
+    console.warn('Error saving movement to Supabase:', e);
+  }
+}
+
+export async function saveShiftClosureToSupabase(closure: ShiftClosure): Promise<void> {
+  try {
+    await supabase.from('shift_closures').insert({
+      id: closure.id,
+      date: closure.date,
+      cashier_id: closure.cashierId,
+      cashier_name: closure.cashierName,
+      sales_count: closure.salesCount,
+      total_sales: closure.totalSales,
+      cash_total: closure.cashTotal,
+      card_total: closure.cardTotal,
+      transfer_total: closure.transferTotal,
+      declared_cash: closure.declaredCash,
+      expected_cash: closure.expectedCash,
+      difference: closure.difference,
+      status: closure.status,
+      closed_at: closure.closedAt,
+    });
+  } catch (e) {
+    console.warn('Error saving shift closure to Supabase:', e);
+  }
+}
+
+export async function saveUserToSupabase(user: User & { password?: string }): Promise<void> {
+  try {
+    await supabase.from('users').upsert({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      avatar: user.avatar,
+      document_id: user.documentId,
+      employee_id: user.employeeId,
+      password: user.password || 'admin123',
+      status: user.status,
+      phone: user.phone,
+      address: user.address,
+      birth_date: user.birthDate,
+      hire_date: user.hireDate,
+      cargo: user.cargo,
+    });
+  } catch (e) {
+    console.warn('Error syncing user to Supabase:', e);
+  }
+}
+
+export async function saveEmployeeToSupabase(employee: Employee): Promise<void> {
+  try {
+    await supabase.from('employees').upsert({
+      id: employee.id,
+      full_name: employee.fullName,
+      document_id: employee.documentId,
+      phone: employee.phone,
+      address: employee.address,
+      email: employee.email,
+      birth_date: employee.birthDate,
+      hire_date: employee.hireDate,
+      role: employee.role,
+      photo: employee.photo,
+      status: employee.status,
+      cargo: employee.cargo,
+      registration_date: employee.registrationDate,
+      user_id: employee.userId,
+    });
+  } catch (e) {
+    console.warn('Error syncing employee to Supabase:', e);
+  }
+}
+
+/**
+ * Ensures the default Administrator exists in Supabase
+ */
+export async function ensureAdminInSupabase(): Promise<void> {
+  const adminUser = INITIAL_USERS[0];
+  const adminEmployee = INITIAL_EMPLOYEES[0];
+  if (adminUser) await saveUserToSupabase(adminUser);
+  if (adminEmployee) await saveEmployeeToSupabase(adminEmployee);
+}
