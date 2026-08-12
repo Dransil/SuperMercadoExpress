@@ -1,15 +1,17 @@
 import React from 'react';
 import { User } from '../types';
-import { UserCheck, ShoppingBag, Clock, CheckCircle2, ShoppingCart, ArrowRight } from 'lucide-react';
+import { UserCheck, ShoppingBag, Clock, CheckCircle2, ShoppingCart, ArrowRight, Receipt } from 'lucide-react';
 
 interface CashierDashboardProps {
   currentUser: User;
   onNavigateToSales?: () => void;
+  onNavigateToShiftClosure?: () => void;
 }
 
 export const CashierDashboard: React.FC<CashierDashboardProps> = ({
   currentUser,
   onNavigateToSales,
+  onNavigateToShiftClosure,
 }) => {
   return (
     <div className="space-y-6">
@@ -36,11 +38,11 @@ export const CashierDashboard: React.FC<CashierDashboardProps> = ({
             </div>
           </div>
 
-          <div className="flex flex-col sm:items-end gap-3 shrink-0">
+          <div className="flex flex-col sm:items-end gap-2.5 shrink-0">
             {onNavigateToSales && (
               <button
                 onClick={onNavigateToSales}
-                className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-all shadow-md cursor-pointer"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-all shadow-md cursor-pointer"
               >
                 <ShoppingCart className="w-4 h-4" />
                 <span>Ir al Punto de Venta (POS)</span>
@@ -48,8 +50,19 @@ export const CashierDashboard: React.FC<CashierDashboardProps> = ({
               </button>
             )}
 
-            <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2 text-xs font-medium text-slate-600">
-              <Clock className="w-4 h-4 text-emerald-600" />
+            {onNavigateToShiftClosure && (
+              <button
+                id="cashier-cierre-jornada-btn"
+                onClick={onNavigateToShiftClosure}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all border border-slate-300 cursor-pointer"
+              >
+                <Receipt className="w-4 h-4 text-emerald-600" />
+                <span>Realizar Cierre de Jornada</span>
+              </button>
+            )}
+
+            <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2 text-[11px] font-medium text-slate-600">
+              <Clock className="w-3.5 h-3.5 text-emerald-600" />
               <span>Turno Activo — Terminal #01</span>
             </div>
           </div>

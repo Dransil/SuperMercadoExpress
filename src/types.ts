@@ -1,4 +1,5 @@
 export type UserRole = 'admin' | 'cajero';
+export type UserStatus = 'activo' | 'inactivo' | 'pendiente' | 'rechazado';
 
 export interface User {
   id: string;
@@ -8,6 +9,15 @@ export interface User {
   role: UserRole;
   avatar: string;
   documentId: string;
+  employeeId?: string;
+  password?: string;
+  status?: UserStatus;
+  phone?: string;
+  address?: string;
+  birthDate?: string;
+  hireDate?: string;
+  cargo?: string;
+  createdAt?: string;
 }
 
 export interface Employee {
@@ -21,7 +31,10 @@ export interface Employee {
   hireDate: string;
   role: UserRole;
   photo: string;
-  status: 'activo' | 'inactivo';
+  status: UserStatus;
+  cargo?: string;
+  registrationDate?: string;
+  userId?: string;
 }
 
 export type ProductStatus = 'activo' | 'inactivo';
@@ -92,4 +105,23 @@ export interface Sale {
   paymentMethod: PaymentMethod;
   amountTendered?: number; // Para efectivo
   changeGiven?: number; // Para efectivo
+}
+
+export type ClosureStatus = 'coincidencia' | 'faltante' | 'sobrante';
+
+export interface ShiftClosure {
+  id: string; // e.g., CJ-20260811-u2
+  date: string; // YYYY-MM-DD
+  cashierId: string;
+  cashierName: string;
+  salesCount: number;
+  totalSales: number;
+  cashTotal: number;
+  cardTotal: number;
+  transferTotal: number;
+  declaredCash: number;
+  expectedCash: number;
+  difference: number;
+  status: ClosureStatus;
+  closedAt: string;
 }

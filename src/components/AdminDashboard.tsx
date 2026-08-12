@@ -16,8 +16,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onNavigateToDashboard,
 }) => {
   const totalEmployees = employees.length;
-  const adminCount = employees.filter((e) => e.role === 'admin').length;
-  const cashierCount = employees.filter((e) => e.role === 'cajero').length;
+  const adminCount = employees.filter((e) => e.role === 'admin' && e.status !== 'pendiente' && e.status !== 'rechazado').length;
+  const cashierCount = employees.filter((e) => e.role === 'cajero' && e.status !== 'pendiente' && e.status !== 'rechazado').length;
+  const pendingCount = employees.filter((e) => e.status === 'pendiente').length;
 
   return (
     <div className="space-y-6">
@@ -65,6 +66,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Pending Requests Alert Banner */}
+      {pendingCount > 0 && (
+        <div className="bg-amber-500 text-white rounded-2xl p-5 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-white/20 rounded-xl">
+              <Users className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base">
+                {pendingCount} {pendingCount === 1 ? 'Solicitud de registro pendiente' : 'Solicitudes de registro pendientes'}
+              </h3>
+              <p className="text-xs text-amber-100 mt-0.5">
+                Nuevos usuarios han registrado su cuenta y requieren autorización del Administrador para acceder.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onNavigateToEmployees}
+            className="px-4 py-2 bg-white text-amber-900 font-bold text-xs rounded-xl shadow-xs hover:bg-amber-50 transition-colors cursor-pointer shrink-0"
+          >
+            Revisar y Autorizar
+          </button>
+        </div>
+      )}
 
       {/* Module 1 Info Box */}
       <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-5 flex items-start gap-3.5 text-slate-700 text-sm">

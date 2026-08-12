@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { User, Employee, Product, InventoryMovement, MovementType, ToastMessage, Sale } from './types';
-import { INITIAL_EMPLOYEES, INITIAL_PRODUCTS, INITIAL_INVENTORY_MOVEMENTS, INITIAL_SALES } from './data/mockData';
+import { User, Employee, Product, InventoryMovement, MovementType, ToastMessage, Sale, ShiftClosure, UserRole } from './types';
+import { INITIAL_USERS, INITIAL_EMPLOYEES, INITIAL_PRODUCTS, INITIAL_INVENTORY_MOVEMENTS, INITIAL_SALES } from './data/mockData';
 import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -12,19 +12,32 @@ import { InventoryManagement } from './components/InventoryManagement';
 import { SalesModule } from './components/SalesModule';
 import { ReportsModule } from './components/ReportsModule';
 import { StatsDashboard } from './components/StatsDashboard';
+import { ShiftClosureModule } from './components/ShiftClosureModule';
 import { UserProfileModal } from './components/UserProfileModal';
 import { CheckCircle2, AlertCircle, Info, ShieldAlert } from 'lucide-react';
 
 export default function App() {
+  const [users, setUsers] = useState<(User & { password: string })[]>(INITIAL_USERS);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [movements, setMovements] = useState<InventoryMovement[]>(INITIAL_INVENTORY_MOVEMENTS);
   const [sales, setSales] = useState<Sale[]>(INITIAL_SALES);
+  const [shiftClosures, setShiftClosures] = useState<ShiftClosure[]>([]);
   const [activeTab, setActiveTab] = useState<string>('inicio');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Shift Closure Save Handler
+  const handleSaveShiftClosure = (newClosure: ShiftClosure) => {
+    setShiftClosures((prev) => [
+      newClosure,
+      ...prev.filter(
+        (c) => !(c.cashierId === newClosure.cashierId && c.date === newClosure.date)
+      ),
+    ]);
+  };
 
   // Toast Helper
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -33,6 +46,33 @@ export default function App() {
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3500);
+  };
+
+  // Change Password Handler
+  const handleChangePassword = (
+    currentPassword: string,
+    newPassword: string
+  ): { success: boolean; message: string } => {
+    if (!currentUser) {
+      return { success: false, message: 'No hay ninguna sesión activa.' };
+    }
+
+    if (currentUser.password && currentUser.password !== currentPassword) {
+      return { success: false, message: 'La contraseña actual ingresada es incorrecta.' };
+    }
+
+    if (currentPassword === newPassword) {
+      return { success: false, message: 'La nueva contraseña debe ser diferente de la contraseña actual.' };
+    }
+
+    const updatedUser = { ...currentUser, password: newPassword };
+    setCurrentUser(updatedUser);
+    setUsers((prevUsers) =>
+      prevUsers.map((u) => (u.id === currentUser.id ? { ...u, password: newPassword } : u))
+    );
+
+    addToast('Contraseña actualizada exitosamente.', 'success');
+    return { success: true, message: 'Contraseña actualizada exitosamente.' };
   };
 
   // Handle Login
@@ -148,6 +188,18 @@ export default function App() {
 
   // Sales Handler (Módulo 4: Ventas)
   const handleCompleteSale = (completedSale: Sale) => {
+    // Stock sufficiency verification guard
+    for (const item of completedSale.items) {
+      const prod = products.find((p) => p.id === item.productId);
+      if (!prod || prod.stock < item.quantity) {
+        addToast(
+          `Venta cancelada: El producto "${item.name}" no tiene suficiente stock disponible (Disponible: ${prod ? prod.stock : 0}, Solicitado: ${item.quantity}).`,
+          'error'
+        );
+        return;
+      }
+    }
+
     // 1. Deduct stock from products
     setProducts((prevProducts) =>
       prevProducts.map((p) => {
@@ -189,11 +241,140 @@ export default function App() {
     setSales((prev) => [completedSale, ...prev]);
   };
 
+  // User Registration Handler (from Login page)
+  const handleRegisterUser = (regData: {
+    fullName: string;
+    documentId: string;
+    phone: string;
+    address: string;
+    email: string;
+    birthDate: string;
+    hireDate: string;
+    cargo: string;
+    photo: string;
+    password: string;
+  }): { success: boolean; message: string } => {
+    // Check if email already exists
+    const existingUser = users.find((u) => u.email.toLowerCase() === regData.email.toLowerCase());
+    if (existingUser) {
+      return { success: false, message: 'El correo electrónico ya se encuentra registrado.' };
+    }
+
+    const newEmpId = `emp-${String(employees.length + 1).padStart(3, '0')}`;
+    const newUserId = `usr-${String(users.length + 1).padStart(3, '0')}`;
+
+    const newEmployee: Employee = {
+      id: newEmpId,
+      fullName: regData.fullName,
+      documentId: regData.documentId,
+      phone: regData.phone,
+      address: regData.address,
+      email: regData.email,
+      birthDate: regData.birthDate,
+      hireDate: regData.hireDate || new Date().toISOString().split('T')[0],
+      role: 'cajero',
+      cargo: regData.cargo || 'Cajero',
+      photo: regData.photo,
+      status: 'pendiente',
+      registrationDate: new Date().toISOString().split('T')[0],
+    };
+
+    const newUser: User & { password: string } = {
+      id: newUserId,
+      username: regData.email.split('@')[0],
+      name: regData.fullName,
+      email: regData.email,
+      documentId: regData.documentId,
+      role: 'cajero',
+      avatar: regData.photo,
+      employeeId: newEmpId,
+      password: regData.password,
+      status: 'pendiente',
+    };
+
+    setEmployees((prev) => [newEmployee, ...prev]);
+    setUsers((prev) => [newUser, ...prev]);
+
+    addToast('Solicitud de registro enviada. Un Administrador debe autorizar su acceso.', 'info');
+
+    return {
+      success: true,
+      message: 'Registro completado. Su cuenta está en estado "Pendiente de Autorización". El Administrador debe aprobarla antes de poder iniciar sesión.',
+    };
+  };
+
+  // User Registration Authorization Handler (by Admin)
+  const handleAuthorizeUser = (employeeId: string, assignedRole: UserRole) => {
+    // 1. Update Employee
+    setEmployees((prev) =>
+      prev.map((emp) =>
+        emp.id === employeeId
+          ? {
+              ...emp,
+              status: 'activo',
+              role: assignedRole,
+              cargo: emp.cargo || (assignedRole === 'admin' ? 'Administrador' : 'Cajero'),
+            }
+          : emp
+      )
+    );
+
+    // 2. Update linked User
+    const targetEmp = employees.find((e) => e.id === employeeId);
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.employeeId === employeeId || (targetEmp && u.email.toLowerCase() === targetEmp.email.toLowerCase())) {
+          return {
+            ...u,
+            status: 'activo',
+            role: assignedRole,
+          };
+        }
+        return u;
+      })
+    );
+
+    addToast(
+      `Usuario "${targetEmp?.fullName || 'solicitante'}" autorizado correctamente con el rol de ${
+        assignedRole === 'admin' ? 'Administrador' : 'Cajero'
+      }.`,
+      'success'
+    );
+  };
+
+  // User Registration Rejection Handler (by Admin)
+  const handleRejectUser = (employeeId: string) => {
+    // 1. Update Employee
+    setEmployees((prev) =>
+      prev.map((emp) => (emp.id === employeeId ? { ...emp, status: 'rechazado' } : emp))
+    );
+
+    // 2. Update linked User
+    const targetEmp = employees.find((e) => e.id === employeeId);
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.employeeId === employeeId || (targetEmp && u.email.toLowerCase() === targetEmp.email.toLowerCase())) {
+          return {
+            ...u,
+            status: 'rechazado',
+          };
+        }
+        return u;
+      })
+    );
+
+    addToast(`La solicitud de registro de "${targetEmp?.fullName || 'solicitante'}" ha sido rechazada.`, 'info');
+  };
+
   // Render Login screen if no active session
   if (!currentUser) {
     return (
       <div className="font-sans antialiased text-slate-900 bg-slate-50 min-h-screen">
-        <Login onLoginSuccess={handleLoginSuccess} />
+        <Login
+          onLoginSuccess={handleLoginSuccess}
+          users={users}
+          onRegisterUser={handleRegisterUser}
+        />
 
         {/* Global Toast Notifications */}
         <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm">
@@ -226,6 +407,9 @@ export default function App() {
     }
     if (activeTab === 'ventas') {
       return 'Punto de Venta — Módulo de Ventas';
+    }
+    if (activeTab === 'cierre') {
+      return 'Cierre de Jornada — Arqueo y Contabilidad';
     }
     if (activeTab === 'productos') {
       return 'Gestión de Productos';
@@ -289,6 +473,18 @@ export default function App() {
             <CashierDashboard
               currentUser={currentUser}
               onNavigateToSales={() => setActiveTab('ventas')}
+              onNavigateToShiftClosure={() => setActiveTab('cierre')}
+            />
+          )}
+
+          {/* Cierre de Jornada (Cajero) */}
+          {activeTab === 'cierre' && (
+            <ShiftClosureModule
+              currentUser={currentUser}
+              sales={sales}
+              shiftClosures={shiftClosures}
+              onSaveShiftClosure={handleSaveShiftClosure}
+              showToast={addToast}
             />
           )}
 
@@ -307,6 +503,7 @@ export default function App() {
           {activeTab === 'productos' && (
             <ProductManagement
               products={products}
+              currentUser={currentUser}
               onAddProduct={handleAddProduct}
               onUpdateProduct={handleUpdateProduct}
               onDeleteProduct={handleDeleteProduct}
@@ -325,13 +522,25 @@ export default function App() {
             />
           )}
 
-          {/* Módulo 5: Reportes */}
-          {activeTab === 'reportes' && (
+          {/* Módulo 5: Reportes (Solo Administrador) */}
+          {activeTab === 'reportes' && currentUser.role === 'admin' && (
             <ReportsModule
               sales={sales}
               currentUser={currentUser}
               showToast={addToast}
             />
+          )}
+
+          {activeTab === 'reportes' && currentUser.role !== 'admin' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center max-w-md mx-auto my-12 space-y-4 shadow-sm">
+              <div className="p-3 bg-amber-50 text-amber-600 rounded-full w-12 h-12 mx-auto flex items-center justify-center border border-amber-200">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800">Acceso Restringido</h2>
+              <p className="text-sm text-slate-600">
+                El Módulo de Reportes Generales está reservado únicamente para el perfil de Administrador.
+              </p>
+            </div>
           )}
 
           {/* Módulo 6: Panel de Estadísticas (Dashboard - Solo Admin) */}
@@ -362,6 +571,8 @@ export default function App() {
               onAddEmployee={handleAddEmployee}
               onUpdateEmployee={handleUpdateEmployee}
               onDeleteEmployee={handleDeleteEmployee}
+              onAuthorizeUser={handleAuthorizeUser}
+              onRejectUser={handleRejectUser}
             />
           )}
 
@@ -391,6 +602,7 @@ export default function App() {
         user={currentUser}
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
+        onChangePassword={handleChangePassword}
       />
 
       {/* Global Toast Notifications */}

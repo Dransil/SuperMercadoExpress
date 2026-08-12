@@ -190,22 +190,38 @@ export const InventoryManagement: React.FC<InventoryManagementProps> = ({
       const newStock = current + qty;
       return { newStock, delta: qty, isValid: true, error: null };
     } else {
-      // Ajuste
+      // Ajuste de Inventario (Solo actualización o incremento permitido, NO reducción manual)
       if (adjustmentMode === 'final_stock') {
         if (qty < 0) {
           return { newStock: current, delta: 0, isValid: false, error: 'La existencia final no puede ser negativa' };
+        }
+        if (qty < current) {
+          return {
+            newStock: current,
+            delta: 0,
+            isValid: false,
+            error: 'No se permite reducir el stock manualmente. Las disminuciones de inventario solo se producen al completar una venta.',
+          };
         }
         const delta = qty - current;
         return { newStock: qty, delta, isValid: true, error: null };
       } else {
         // Delta mode (+ / -)
-        const newStock = current + qty;
-        if (newStock < 0) {
+        if (qty < 0) {
           return {
-            newStock,
-            delta: qty,
+            newStock: current,
+            delta: 0,
             isValid: false,
-            error: `Ajuste no válido: la existencia resultante (${newStock}) sería negativa`,
+            error: 'No se permite reducir el stock manualmente. Las disminuciones de inventario solo se producen al completar una venta.',
+          };
+        }
+        const newStock = current + qty;
+        if (newStock < current) {
+          return {
+            newStock: current,
+            delta: 0,
+            isValid: false,
+            error: 'No se permite reducir el stock manualmente. Las disminuciones de inventario solo se producen al completar una venta.',
           };
         }
         return { newStock, delta: qty, isValid: true, error: null };

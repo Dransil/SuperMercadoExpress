@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Sale, PaymentMethod, User } from '../types';
+import { formatBs } from '../utils/formatters';
 import {
   FileText,
   Calendar,
@@ -72,16 +73,6 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
     });
     return Array.from(cashiersMap.entries()).map(([id, name]) => ({ id, name }));
   }, [sales]);
-
-  // Format COP Currency
-  const formatCOP = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   // Helper to parse sale date YYYY-MM-DD HH:mm:ss
   const parseSaleDate = (dateStr: string): Date => {
@@ -292,7 +283,7 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
               Total Facturado
             </p>
             <p className="text-2xl font-black text-emerald-600 mt-1 font-mono">
-              {formatCOP(summaryMetrics.totalBilled)}
+              {formatBs(summaryMetrics.totalBilled)}
             </p>
           </div>
           <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
@@ -307,7 +298,7 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
               Ticket Promedio
             </p>
             <p className="text-2xl font-black text-slate-900 mt-1 font-mono">
-              {formatCOP(summaryMetrics.averageTicket)}
+              {formatBs(summaryMetrics.averageTicket)}
             </p>
           </div>
           <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
@@ -638,7 +629,7 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
 
                       {/* Sale Total */}
                       <td className="py-3.5 px-4 text-right font-black text-slate-900 font-mono text-sm whitespace-nowrap">
-                        {formatCOP(sale.total)}
+                        {formatBs(sale.total)}
                       </td>
 
                       {/* View Detail Action */}
@@ -778,8 +769,8 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
                         <td className="py-2 px-2 font-mono text-[10px] text-slate-500">{it.code}</td>
                         <td className="py-2 px-2 font-medium text-slate-800 line-clamp-1">{it.name}</td>
                         <td className="py-2 px-2 text-center font-bold text-slate-700 font-mono">{it.quantity}</td>
-                        <td className="py-2 px-2 text-right font-mono text-slate-600">{formatCOP(it.unitPrice)}</td>
-                        <td className="py-2 px-2 text-right font-mono font-bold text-slate-900">{formatCOP(it.subtotal)}</td>
+                        <td className="py-2 px-2 text-right font-mono text-slate-600">{formatBs(it.unitPrice)}</td>
+                        <td className="py-2 px-2 text-right font-mono font-bold text-slate-900">{formatBs(it.subtotal)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -790,20 +781,20 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
               <div className="border-t border-dashed border-slate-300 pt-3 space-y-1.5 text-xs">
                 <div className="flex justify-between text-slate-600">
                   <span>Subtotal Venta:</span>
-                  <span className="font-mono">{formatCOP(selectedSaleDetail.subtotal)}</span>
+                  <span className="font-mono">{formatBs(selectedSaleDetail.subtotal)}</span>
                 </div>
 
                 {selectedSaleDetail.discount > 0 && (
                   <div className="flex justify-between text-emerald-700 font-medium">
                     <span>Descuento Otorgado:</span>
-                    <span className="font-mono">-{formatCOP(selectedSaleDetail.discount)}</span>
+                    <span className="font-mono">-{formatBs(selectedSaleDetail.discount)}</span>
                   </div>
                 )}
 
                 <div className="flex justify-between text-sm font-bold text-slate-900 pt-1 border-t border-slate-200">
                   <span>TOTAL COBRADO:</span>
                   <span className="font-mono text-base text-emerald-600">
-                    {formatCOP(selectedSaleDetail.total)}
+                    {formatBs(selectedSaleDetail.total)}
                   </span>
                 </div>
 
@@ -811,11 +802,11 @@ export const ReportsModule: React.FC<ReportsModuleProps> = ({
                   <div className="pt-2 border-t border-slate-100 text-slate-500 text-[11px] space-y-0.5">
                     <div className="flex justify-between">
                       <span>Monto Recibido:</span>
-                      <span className="font-mono">{formatCOP(selectedSaleDetail.amountTendered || 0)}</span>
+                      <span className="font-mono">{formatBs(selectedSaleDetail.amountTendered || 0)}</span>
                     </div>
                     <div className="flex justify-between font-bold text-slate-800">
                       <span>Cambio Devuelto:</span>
-                      <span className="font-mono text-emerald-700">{formatCOP(selectedSaleDetail.changeGiven || 0)}</span>
+                      <span className="font-mono text-emerald-700">{formatBs(selectedSaleDetail.changeGiven || 0)}</span>
                     </div>
                   </div>
                 )}

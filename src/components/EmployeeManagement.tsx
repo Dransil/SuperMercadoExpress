@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Employee, UserRole } from '../types';
+import { Employee, UserRole, UserStatus } from '../types';
 import { AVATAR_PRESETS } from '../data/mockData';
 import {
   UserPlus,
@@ -19,6 +19,11 @@ import {
   Image as ImageIcon,
   AlertTriangle,
   Users,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  ShieldCheck,
+  UserCheck,
 } from 'lucide-react';
 
 interface EmployeeManagementProps {
@@ -26,6 +31,8 @@ interface EmployeeManagementProps {
   onAddEmployee: (employee: Omit<Employee, 'id'>) => void;
   onUpdateEmployee: (id: string, updated: Omit<Employee, 'id'>) => void;
   onDeleteEmployee: (id: string) => void;
+  onAuthorizeUser?: (id: string, role: UserRole) => void;
+  onRejectUser?: (id: string) => void;
 }
 
 export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
@@ -33,7 +40,12 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   onAddEmployee,
   onUpdateEmployee,
   onDeleteEmployee,
+  onAuthorizeUser,
+  onRejectUser,
 }) => {
+  // Main Tab State: 'activos' | 'pendientes' | 'rechazados'
+  const [activeStatusTab, setActiveStatusTab] = useState<'activos' | 'pendientes' | 'rechazados'>('activos');
+
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'todos' | UserRole>('todos');
@@ -43,6 +55,10 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
   const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
+
+  // Authorization Modal State for Pending Requests
+  const [authorizingEmployee, setAuthorizingEmployee] = useState<Employee | null>(null);
+  const [selectedRoleForAuthorization, setSelectedRoleForAuthorization] = useState<UserRole>('cajero');
 
   // Form Field States
   const [fullName, setFullName] = useState('');
@@ -54,10 +70,16 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   const [hireDate, setHireDate] = useState('');
   const [role, setRole] = useState<UserRole>('cajero');
   const [photo, setPhoto] = useState('');
-  const [status, setStatus] = useState<'activo' | 'inactivo'>('activo');
+  const [status, setStatus] = useState<UserStatus>('activo');
+  const [cargo, setCargo] = useState('');
 
   // Form Validation & Error state
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Counts for Badges
+  const pendingCount = employees.filter((e) => e.status === 'pendiente').length;
+  const activeCount = employees.filter((e) => e.status === 'activo' || !e.status).length;
+  const rejectedCount = employees.filter((e) => e.status === 'rechazado').length;
 
   // Open Form Modal for Create
   const handleOpenCreateModal = () => {
@@ -70,6 +92,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     setBirthDate('');
     setHireDate(new Date().toISOString().split('T')[0]);
     setRole('cajero');
+    setCargo('Cajero');
     setPhoto(AVATAR_PRESETS[Math.floor(Math.random() * AVATAR_PRESETS.length)]);
     setStatus('activo');
     setFormErrors({});
@@ -87,10 +110,33 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     setBirthDate(emp.birthDate);
     setHireDate(emp.hireDate);
     setRole(emp.role);
+    setCargo(emp.cargo || (emp.role === 'admin' ? 'Administrador' : 'Cajero'));
     setPhoto(emp.photo);
     setStatus(emp.status);
     setFormErrors({});
     setIsFormModalOpen(true);
+  };
+
+  // Open Authorization Modal
+  const handleOpenAuthorizationModal = (emp: Employee) => {
+    setAuthorizingEmployee(emp);
+    setSelectedRoleForAuthorization(emp.role || 'cajero');
+  };
+
+  // Handle Approve Registration Request
+  const handleConfirmAuthorize = () => {
+    if (authorizingEmployee && onAuthorizeUser) {
+      onAuthorizeUser(authorizingEmployee.id, selectedRoleForAuthorization);
+      setAuthorizingEmployee(null);
+    }
+  };
+
+  // Handle Reject Registration Request
+  const handleConfirmReject = () => {
+    if (authorizingEmployee && onRejectUser) {
+      onRejectUser(authorizingEmployee.id);
+      setAuthorizingEmployee(null);
+    }
   };
 
   // Validate form
@@ -125,6 +171,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
       birthDate,
       hireDate,
       role,
+      cargo: cargo.trim() || (role === 'admin' ? 'Administrador' : 'Cajero'),
       photo: photo.trim(),
       status,
     };
@@ -146,20 +193,30 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     }
   };
 
-  // Filtered employees list
+  // Filtered employees list based on status tab and search
   const filteredEmployees = employees.filter((emp) => {
+    const empStatus = emp.status || 'activo';
+
+    // Status Tab filter
+    if (activeStatusTab === 'activos' && empStatus !== 'activo') return false;
+    if (activeStatusTab === 'pendientes' && empStatus !== 'pendiente') return false;
+    if (activeStatusTab === 'rechazados' && empStatus !== 'rechazado') return false;
+
+    // Search filter
     const matchesSearch =
       emp.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.documentId.includes(searchTerm) ||
-      emp.email.toLowerCase().includes(searchTerm.toLowerCase());
+      emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (emp.cargo && emp.cargo.toLowerCase().includes(searchTerm.toLowerCase()));
 
+    // Role filter
     const matchesRole = roleFilter === 'todos' || emp.role === roleFilter;
 
     return matchesSearch && matchesRole;
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       {/* Top Header Controls Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
         <div className="flex items-center gap-3">
@@ -167,9 +224,9 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-800 leading-tight">Administración de Empleados</h2>
+            <h2 className="text-lg font-bold text-slate-800 leading-tight">Módulo de Usuarios y Empleados</h2>
             <p className="text-xs text-slate-500">
-              Gestione los registros, cargos y datos del personal del supermercado.
+              Gestión de personal, solicitudes de registro y asignación de permisos de acceso.
             </p>
           </div>
         </div>
@@ -177,10 +234,65 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
         <button
           id="btn-registrar-empleado"
           onClick={handleOpenCreateModal}
-          className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald-200/60 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald-200/60 transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
         >
           <UserPlus className="w-4 h-4" />
-          <span>Registrar Empleado</span>
+          <span>Registrar Empleado Directo</span>
+        </button>
+      </div>
+
+      {/* Main Status Filter Tabs */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-1.5 flex items-center gap-1 shadow-xs overflow-x-auto">
+        <button
+          onClick={() => setActiveStatusTab('activos')}
+          className={`flex-1 min-w-[140px] py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            activeStatusTab === 'activos'
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-xs'
+              : 'text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <span>Usuarios Activos</span>
+          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
+            {activeCount}
+          </span>
+        </button>
+
+        <button
+          id="tab-solicitudes-pendientes"
+          onClick={() => setActiveStatusTab('pendientes')}
+          className={`flex-1 min-w-[170px] py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            activeStatusTab === 'pendientes'
+              ? 'bg-amber-50 text-amber-900 border border-amber-300 shadow-xs'
+              : 'text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <Clock className="w-4 h-4 text-amber-600" />
+          <span>Solicitudes Pendientes</span>
+          {pendingCount > 0 ? (
+            <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[11px] font-bold animate-pulse">
+              {pendingCount}
+            </span>
+          ) : (
+            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold">
+              0
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveStatusTab('rechazados')}
+          className={`flex-1 min-w-[150px] py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            activeStatusTab === 'rechazados'
+              ? 'bg-rose-50 text-rose-800 border border-rose-200 shadow-xs'
+              : 'text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <XCircle className="w-4 h-4 text-rose-600" />
+          <span>Solicitudes Rechazadas</span>
+          <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[11px] font-bold">
+            {rejectedCount}
+          </span>
         </button>
       </div>
 
@@ -195,7 +307,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por nombre, documento o correo..."
+            placeholder="Buscar por nombre, documento, correo o cargo..."
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors shadow-xs"
           />
           {searchTerm && (
@@ -218,7 +330,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
             onChange={(e) => setRoleFilter(e.target.value as 'todos' | UserRole)}
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors cursor-pointer shadow-xs"
           >
-            <option value="todos">Todos los cargos</option>
+            <option value="todos">Todos los roles</option>
             <option value="admin">Administrador</option>
             <option value="cajero">Cajero</option>
           </select>
@@ -231,132 +343,186 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th className="py-3.5 px-4">Empleado</th>
+                <th className="py-3.5 px-4">Empleado / Usuario</th>
                 <th className="py-3.5 px-4">Documento ID</th>
                 <th className="py-3.5 px-4">Contacto</th>
-                <th className="py-3.5 px-4">Cargo</th>
-                <th className="py-3.5 px-4">Fechas</th>
+                <th className="py-3.5 px-4">Cargo / Puesto</th>
+                <th className="py-3.5 px-4">Registro / Ingreso</th>
+                <th className="py-3.5 px-4">Estado</th>
                 <th className="py-3.5 px-4 text-center">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     <div className="max-w-xs mx-auto space-y-2">
                       <Users className="w-8 h-8 text-slate-300 mx-auto" />
-                      <p className="font-semibold text-slate-600">No se encontraron empleados</p>
+                      <p className="font-semibold text-slate-600">No hay registros en esta sección</p>
                       <p className="text-xs text-slate-400">
-                        Intente ajustar los términos de búsqueda o registre un nuevo empleado.
+                        {activeStatusTab === 'pendientes'
+                          ? 'No hay solicitudes de registro pendientes de autorización.'
+                          : activeStatusTab === 'rechazados'
+                          ? 'No hay solicitudes rechazadas.'
+                          : 'No se encontraron usuarios activos con los criterios seleccionados.'}
                       </p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                filteredEmployees.map((emp) => (
-                  <tr
-                    key={emp.id}
-                    className="hover:bg-slate-50/80 transition-colors group"
-                  >
-                    {/* Employee Profile (Photo, Name, Email) */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={emp.photo}
-                          alt={emp.fullName}
-                          className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-100 group-hover:ring-emerald-500/50 transition-all shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <p className="font-bold text-slate-800 truncate text-sm">{emp.fullName}</p>
-                          <p className="text-xs text-slate-500 truncate flex items-center gap-1">
-                            <Mail className="w-3 h-3 text-slate-400" />
-                            {emp.email}
-                          </p>
+                filteredEmployees.map((emp) => {
+                  const empStatus = emp.status || 'activo';
+
+                  return (
+                    <tr
+                      key={emp.id}
+                      className="hover:bg-slate-50/80 transition-colors group"
+                    >
+                      {/* Employee Profile (Photo, Name, Email) */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={emp.photo}
+                            alt={emp.fullName}
+                            className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-100 group-hover:ring-emerald-500/50 transition-all shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-800 truncate text-sm">{emp.fullName}</p>
+                            <p className="text-xs text-slate-500 truncate flex items-center gap-1">
+                              <Mail className="w-3 h-3 text-slate-400" />
+                              {emp.email}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Document ID */}
-                    <td className="py-3.5 px-4 font-mono text-xs text-slate-700">
-                      <span className="bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
-                        {emp.documentId}
-                      </span>
-                    </td>
+                      {/* Document ID */}
+                      <td className="py-3.5 px-4 font-mono text-xs text-slate-700">
+                        <span className="bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                          {emp.documentId}
+                        </span>
+                      </td>
 
-                    {/* Contact (Phone & Address) */}
-                    <td className="py-3.5 px-4 text-xs text-slate-600 space-y-0.5">
-                      <p className="flex items-center gap-1.5 text-slate-800 font-medium">
-                        <Phone className="w-3 h-3 text-slate-400" />
-                        {emp.phone}
-                      </p>
-                      <p className="flex items-center gap-1.5 text-slate-500 truncate max-w-[180px]" title={emp.address}>
-                        <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                        {emp.address}
-                      </p>
-                    </td>
-
-                    {/* Role Badge */}
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold capitalize border ${
-                          emp.role === 'admin'
-                            ? 'bg-blue-50 text-blue-700 border-blue-200'
-                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        }`}
-                      >
-                        <Briefcase className="w-3 h-3" />
-                        {emp.role === 'admin' ? 'Administrador' : 'Cajero'}
-                      </span>
-                    </td>
-
-                    {/* Dates */}
-                    <td className="py-3.5 px-4 text-xs text-slate-500 space-y-0.5">
-                      <p className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-slate-400" />
-                        Nac: <span className="text-slate-700 font-medium">{emp.birthDate}</span>
-                      </p>
-                      <p className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-emerald-600" />
-                        Ing: <span className="text-slate-700 font-medium">{emp.hireDate}</span>
-                      </p>
-                    </td>
-
-                    {/* Action Buttons: Ver, Editar, Eliminar */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {/* Ver Detalle */}
-                        <button
-                          onClick={() => setViewingEmployee(emp)}
-                          className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-                          title="Ver detalle del empleado"
-                          aria-label="Ver detalle"
+                      {/* Contact (Phone & Address) */}
+                      <td className="py-3.5 px-4 text-xs text-slate-600 space-y-0.5">
+                        <p className="flex items-center gap-1.5 text-slate-800 font-medium">
+                          <Phone className="w-3 h-3 text-slate-400" />
+                          {emp.phone}
+                        </p>
+                        <p
+                          className="flex items-center gap-1.5 text-slate-500 truncate max-w-[180px]"
+                          title={emp.address}
                         >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                          <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                          {emp.address}
+                        </p>
+                      </td>
 
-                        {/* Editar */}
-                        <button
-                          onClick={() => handleOpenEditModal(emp)}
-                          className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-800 border border-blue-200 rounded-lg transition-colors cursor-pointer"
-                          title="Editar empleado"
-                          aria-label="Editar"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
+                      {/* Cargo / Role */}
+                      <td className="py-3.5 px-4">
+                        <div>
+                          <p className="font-semibold text-slate-800 text-xs">
+                            {emp.cargo || (emp.role === 'admin' ? 'Administrador' : 'Cajero')}
+                          </p>
+                          {empStatus === 'activo' && (
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold capitalize mt-0.5 border ${
+                                emp.role === 'admin'
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              }`}
+                            >
+                              <Briefcase className="w-2.5 h-2.5" />
+                              Rol: {emp.role === 'admin' ? 'Administrador' : 'Cajero'}
+                            </span>
+                          )}
+                        </div>
+                      </td>
 
-                        {/* Eliminar */}
-                        <button
-                          onClick={() => setDeletingEmployee(emp)}
-                          className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-800 border border-rose-200 rounded-lg transition-colors cursor-pointer"
-                          title="Eliminar empleado"
-                          aria-label="Eliminar"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      {/* Dates */}
+                      <td className="py-3.5 px-4 text-xs text-slate-500 space-y-0.5">
+                        <p className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-slate-400" />
+                          Reg: <span className="text-slate-700 font-medium">{emp.registrationDate || emp.hireDate}</span>
+                        </p>
+                        <p className="flex items-center gap-1 text-[11px] text-slate-400">
+                          Nac: <span>{emp.birthDate}</span>
+                        </p>
+                      </td>
+
+                      {/* Status Badge */}
+                      <td className="py-3.5 px-4">
+                        {empStatus === 'activo' && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            Activo
+                          </span>
+                        )}
+                        {empStatus === 'pendiente' && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            Pendiente
+                          </span>
+                        )}
+                        {empStatus === 'rechazado' && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                            <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                            Rechazado
+                          </span>
+                        )}
+                        {empStatus === 'inactivo' && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                            Inactivo
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Action Buttons */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {empStatus === 'pendiente' ? (
+                            <button
+                              onClick={() => handleOpenAuthorizationModal(emp)}
+                              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                            >
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                              <span>Revisar y Autorizar</span>
+                            </button>
+                          ) : (
+                            <>
+                              {/* Ver Detalle */}
+                              <button
+                                onClick={() => setViewingEmployee(emp)}
+                                className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                                title="Ver detalle del empleado"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+
+                              {/* Editar */}
+                              <button
+                                onClick={() => handleOpenEditModal(emp)}
+                                className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-800 border border-blue-200 rounded-lg transition-colors cursor-pointer"
+                                title="Editar datos"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+
+                              {/* Eliminar */}
+                              <button
+                                onClick={() => setDeletingEmployee(emp)}
+                                className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-800 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+                                title="Eliminar registro"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -364,10 +530,173 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
         {/* Table Footer Stats */}
         <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-          <span>Mostrando {filteredEmployees.length} de {employees.length} empleados registrados</span>
-          <span className="text-emerald-700 font-bold">Módulo de Usuarios Activo</span>
+          <span>
+            Mostrando {filteredEmployees.length} registros en sección{' '}
+            <strong className="text-slate-700 capitalize">{activeStatusTab}</strong>
+          </span>
+          <span className="text-emerald-700 font-bold">Módulo de Control de Acceso</span>
         </div>
       </div>
+
+      {/* AUTHORIZATION REVIEW MODAL (ADMIN APPROVAL/REJECTION) */}
+      {authorizingEmployee && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-fadeIn">
+            {/* Header */}
+            <div className="bg-amber-500 text-white p-5 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <ShieldCheck className="w-6 h-6" />
+                <div>
+                  <h3 className="text-lg font-bold">Revisión de Solicitud de Registro</h3>
+                  <p className="text-xs text-amber-100">
+                    Evalúe los datos personales y asigne el rol correspondiente.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAuthorizingEmployee(null)}
+                className="p-1 hover:bg-amber-600 rounded-lg transition-colors cursor-pointer text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Applicant Profile Header */}
+              <div className="flex items-center gap-4 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <img
+                  src={authorizingEmployee.photo}
+                  alt={authorizingEmployee.fullName}
+                  className="w-14 h-14 rounded-full object-cover ring-2 ring-amber-500 shrink-0"
+                />
+                <div>
+                  <h4 className="font-bold text-slate-900 text-base">{authorizingEmployee.fullName}</h4>
+                  <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                    <Mail className="w-3.5 h-3.5 text-slate-400" />
+                    {authorizingEmployee.email}
+                  </p>
+                  <span className="inline-block mt-1 bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">
+                    Estado: Pendiente de Autorización
+                  </span>
+                </div>
+              </div>
+
+              {/* Submitted Personal Data Grid */}
+              <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs">
+                <div className="grid grid-cols-2 gap-2 pb-2 border-b border-slate-200">
+                  <div>
+                    <span className="text-slate-400 font-medium">Documento ID:</span>
+                    <p className="font-mono font-bold text-slate-800">{authorizingEmployee.documentId}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">Teléfono:</span>
+                    <p className="font-bold text-slate-800">{authorizingEmployee.phone}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pb-2 border-b border-slate-200">
+                  <div>
+                    <span className="text-slate-400 font-medium">Cargo Solicitado:</span>
+                    <p className="font-bold text-slate-800">{authorizingEmployee.cargo || 'Auxiliar'}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-medium">Fecha Solicitud:</span>
+                    <p className="font-bold text-slate-800">{authorizingEmployee.registrationDate || authorizingEmployee.hireDate}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 font-medium">Dirección:</span>
+                  <p className="font-bold text-slate-800">{authorizingEmployee.address}</p>
+                </div>
+              </div>
+
+              {/* Role Selection Assignment */}
+              <div className="space-y-2 pt-1">
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Asignar Rol de Acceso al Sistema *
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRoleForAuthorization('cajero')}
+                    className={`p-3 rounded-xl border-2 text-left cursor-pointer transition-all ${
+                      selectedRoleForAuthorization === 'cajero'
+                        ? 'border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                        <UserCheck className="w-4 h-4 text-emerald-600" /> Cajero
+                      </span>
+                      {selectedRoleForAuthorization === 'cajero' && (
+                        <Check className="w-4 h-4 text-emerald-600" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Acceso al Módulo de Ventas y consulta básica de productos.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRoleForAuthorization('admin')}
+                    className={`p-3 rounded-xl border-2 text-left cursor-pointer transition-all ${
+                      selectedRoleForAuthorization === 'admin'
+                        ? 'border-blue-500 bg-blue-50/60 ring-2 ring-blue-500/20'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-blue-600" /> Administrador
+                      </span>
+                      {selectedRoleForAuthorization === 'admin' && (
+                        <Check className="w-4 h-4 text-blue-600" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Acceso total a Productos, Usuarios, Reportes e Inventario.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={handleConfirmReject}
+                  className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <XCircle className="w-4 h-4 text-rose-600" />
+                  <span>Rechazar Solicitud</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAuthorizingEmployee(null)}
+                    className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    id="btn-autorizar-usuario"
+                    type="button"
+                    onClick={handleConfirmAuthorize}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-200/60 transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Autorizar Usuario</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CREATE / EDIT FORM MODAL */}
       {isFormModalOpen && (
@@ -460,7 +789,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                       type="text"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="Ej: +57 310 987 6543"
+                      placeholder="Ej: +591 712 34567"
                       className={`w-full pl-9 pr-3 py-2 bg-white border rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none ${
                         formErrors.phone ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
                       }`}
@@ -495,10 +824,10 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                   )}
                 </div>
 
-                {/* Cargo */}
+                {/* Rol */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Cargo / Rol *
+                    Rol en Sistema *
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -513,6 +842,20 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                       <option value="admin">Administrador</option>
                     </select>
                   </div>
+                </div>
+
+                {/* Cargo */}
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Cargo / Puesto de Trabajo *
+                  </label>
+                  <input
+                    type="text"
+                    value={cargo}
+                    onChange={(e) => setCargo(e.target.value)}
+                    placeholder="Ej: Cajera Principal, Auxiliar de Ventas, Supervisor"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  />
                 </div>
 
                 {/* Dirección */}
@@ -702,13 +1045,22 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                     {viewingEmployee.role === 'admin' ? 'Administrador' : 'Cajero'}
                   </span>
                   <h3 className="text-xl font-bold text-slate-800">{viewingEmployee.fullName}</h3>
-                  <p className="text-xs text-slate-500 font-mono mt-0.5">ID: {viewingEmployee.documentId}</p>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">Documento ID: {viewingEmployee.documentId}</p>
                 </div>
               </div>
             </div>
 
             {/* Profile Details Grid */}
             <div className="p-6 space-y-3 text-sm">
+              <div className="flex items-center justify-between py-2 border-b border-slate-100">
+                <span className="text-slate-500 font-medium flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-slate-400" /> Cargo:
+                </span>
+                <span className="font-semibold text-slate-800">
+                  {viewingEmployee.cargo || (viewingEmployee.role === 'admin' ? 'Administrador' : 'Cajero')}
+                </span>
+              </div>
+
               <div className="flex items-center justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium flex items-center gap-2">
                   <Mail className="w-4 h-4 text-slate-400" /> Correo Electrónico:
@@ -739,7 +1091,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
               <div className="flex items-center justify-between py-2">
                 <span className="text-slate-500 font-medium flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-slate-400" /> Fecha Contratación:
+                  <Calendar className="w-4 h-4 text-slate-400" /> Fecha Contratación/Ingreso:
                 </span>
                 <span className="font-bold text-emerald-600">{viewingEmployee.hireDate}</span>
               </div>
@@ -767,7 +1119,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-800">¿Eliminar Empleado?</h3>
+                <h3 className="text-lg font-bold text-slate-800">¿Eliminar Registro?</h3>
                 <p className="text-xs text-slate-500 mt-1">
                   Esta acción eliminará permanentemente a <strong className="text-slate-800">{deletingEmployee.fullName}</strong> ({deletingEmployee.email}) del sistema.
                 </p>
@@ -775,8 +1127,8 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
             </div>
 
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
-              <p>Documento de Identidad: <span className="text-slate-800 font-mono font-bold">{deletingEmployee.documentId}</span></p>
-              <p>Cargo: <span className="text-slate-800 capitalize font-semibold">{deletingEmployee.role}</span></p>
+              <p>Documento ID: <span className="text-slate-800 font-mono font-bold">{deletingEmployee.documentId}</span></p>
+              <p>Cargo: <span className="text-slate-800 capitalize font-semibold">{deletingEmployee.cargo || deletingEmployee.role}</span></p>
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">
@@ -803,3 +1155,4 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     </div>
   );
 };
+

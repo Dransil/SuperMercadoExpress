@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserRole } from '../types';
-import { ShoppingBag, LayoutDashboard, Users, User, LogOut, ShieldCheck, X, Package, Boxes, ShoppingCart, FileText, BarChart3 } from 'lucide-react';
+import { ShoppingBag, LayoutDashboard, Users, User, LogOut, ShieldCheck, X, Package, Boxes, ShoppingCart, FileText, BarChart3, Receipt } from 'lucide-react';
 
 interface SidebarProps {
   currentRole: UserRole;
@@ -126,6 +126,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </span>
           </button>
 
+          {/* Cierre de Jornada (Cajero / Admin) */}
+          <button
+            id="nav-cierre-btn"
+            onClick={() => handleNavClick('cierre')}
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+              isNavActive('cierre')
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
+            }`}
+          >
+            <Receipt className="w-4 h-4 shrink-0 text-emerald-400" />
+            <span className="flex-1 text-left">Cierre de jornada</span>
+          </button>
+
           {/* Módulo 2: Productos */}
           <button
             id="nav-productos-btn"
@@ -154,19 +168,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>Inventario</span>
           </button>
 
-          {/* Módulo 5: Reportes */}
-          <button
-            id="nav-reportes-btn"
-            onClick={() => handleNavClick('reportes')}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
-              isNavActive('reportes')
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
-            }`}
-          >
-            <FileText className="w-4 h-4 shrink-0 text-emerald-400" />
-            <span>Reportes</span>
-          </button>
+          {/* Módulo 5: Reportes (Solo Admin) */}
+          {currentRole === 'admin' && (
+            <button
+              id="nav-reportes-btn"
+              onClick={() => handleNavClick('reportes')}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                isNavActive('reportes')
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
+              }`}
+            >
+              <FileText className="w-4 h-4 shrink-0 text-emerald-400" />
+              <span>Reportes</span>
+            </button>
+          )}
 
           {/* Admin-only: Employees Management */}
           {currentRole === 'admin' && (

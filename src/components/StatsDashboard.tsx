@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Sale, Product, User, Employee } from '../types';
+import { formatBs } from '../utils/formatters';
 import { motion } from 'motion/react';
 import {
   TrendingUp,
@@ -81,16 +82,6 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
   const [endDate, setEndDate] = useState<string>(() => {
     return new Date().toISOString().split('T')[0];
   });
-
-  // Currency Formatter COP
-  const formatCOP = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   // Date Parsing Helper YYYY-MM-DD HH:mm:ss
   const parseSaleDate = (dateStr: string): Date => {
@@ -461,14 +452,14 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
   }, [sales]);
 
   // Formatted Date and Time strings for header
-  const formattedDateHeader = currentDateTime.toLocaleDateString('es-CO', {
+  const formattedDateHeader = currentDateTime.toLocaleDateString('es-BO', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
 
-  const formattedTimeHeader = currentDateTime.toLocaleTimeString('es-CO', {
+  const formattedTimeHeader = currentDateTime.toLocaleTimeString('es-BO', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
@@ -694,7 +685,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
           </div>
           <div className="mt-3">
             <p className="text-2xl font-black text-emerald-600 font-mono">
-              {formatCOP(globalKPIs.revenueTodayTotal)}
+              {formatBs(globalKPIs.revenueTodayTotal)}
             </p>
             <p className="text-[11px] text-emerald-600 font-semibold mt-1">
               Facturación de hoy
@@ -719,7 +710,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
           </div>
           <div className="mt-3">
             <p className="text-2xl font-black text-teal-700 font-mono">
-              {formatCOP(globalKPIs.revenueMonthTotal)}
+              {formatBs(globalKPIs.revenueMonthTotal)}
             </p>
             <p className="text-[11px] text-teal-600 font-semibold mt-1">
               Recaudación mensual
@@ -747,7 +738,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
               {mainKPIs.totalSalesCount}
             </p>
             <p className="text-[11px] text-sky-600 font-semibold mt-1">
-              Total: {formatCOP(mainKPIs.totalRevenue)}
+              Total: {formatBs(mainKPIs.totalRevenue)}
             </p>
           </div>
         </motion.div>
@@ -769,7 +760,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
           </div>
           <div className="mt-3">
             <p className="text-2xl font-black text-slate-900 font-mono">
-              {formatCOP(mainKPIs.averageTicket)}
+              {formatBs(mainKPIs.averageTicket)}
             </p>
             <p className="text-[11px] text-amber-600 font-semibold mt-1">
               Promedio por cliente
@@ -904,7 +895,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                   {highlights.topProduct.name}
                 </p>
                 <p className="text-[11px] text-emerald-600 font-mono font-bold mt-0.5">
-                  {highlights.topProduct.qty} uds ({formatCOP(highlights.topProduct.revenue)})
+                  {highlights.topProduct.qty} uds ({formatBs(highlights.topProduct.revenue)})
                 </p>
               </div>
             ) : (
@@ -952,7 +943,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                   {highlights.topCashier.name}
                 </p>
                 <p className="text-[11px] text-blue-600 font-mono font-bold mt-0.5">
-                  {highlights.topCashier.count} ventas ({formatCOP(highlights.topCashier.total)})
+                  {highlights.topCashier.count} ventas ({formatBs(highlights.topCashier.total)})
                 </p>
               </div>
             ) : (
@@ -1086,7 +1077,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                   <XAxis dataKey="fecha" tick={{ fontSize: 10 }} stroke="#64748b" />
                   <YAxis tick={{ fontSize: 10 }} stroke="#64748b" />
                   <Tooltip
-                    formatter={(value: any) => [formatCOP(Number(value)), 'Ingresos']}
+                    formatter={(value: any) => [formatBs(Number(value)), 'Ingresos']}
                     labelStyle={{ fontWeight: 'bold', color: '#1e293b' }}
                     contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }}
                   />
@@ -1138,7 +1129,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(val: any) => [formatCOP(Number(val)), 'Total']}
+                    formatter={(val: any) => [formatBs(Number(val)), 'Total']}
                     contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }}
                   />
                   <Legend verticalAlign="bottom" height={36} iconType="circle" />
@@ -1265,7 +1256,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
               <XAxis dataKey="mes" tick={{ fontSize: 11 }} stroke="#64748b" />
               <YAxis tick={{ fontSize: 10 }} stroke="#64748b" />
               <Tooltip
-                formatter={(val: any) => [formatCOP(Number(val)), 'Ingresos']}
+                formatter={(val: any) => [formatBs(Number(val)), 'Ingresos']}
                 contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }}
               />
               <Bar dataKey="ingresos" fill="#0d9488" radius={[6, 6, 0, 0]} />

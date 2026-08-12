@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Product, ProductStatus } from '../types';
+import { Product, ProductStatus, User, UserRole } from '../types';
+import { formatBs } from '../utils/formatters';
 import {
   PRODUCT_CATEGORIES,
   SELLING_UNITS,
@@ -26,6 +27,8 @@ import {
 
 interface ProductManagementProps {
   products: Product[];
+  currentUser?: User;
+  userRole?: UserRole;
   onAddProduct: (product: Omit<Product, 'id'>) => void;
   onUpdateProduct: (product: Product) => void;
   onDeleteProduct: (id: string) => void;
@@ -34,11 +37,14 @@ interface ProductManagementProps {
 
 export const ProductManagement: React.FC<ProductManagementProps> = ({
   products,
+  currentUser,
+  userRole,
   onAddProduct,
   onUpdateProduct,
   onDeleteProduct,
   showToast,
 }) => {
+  const isCashier = (currentUser?.role === 'cajero') || (userRole === 'cajero');
   // Search state
   const [nameSearch, setNameSearch] = useState('');
   const [codeSearch, setCodeSearch] = useState('');
@@ -228,11 +234,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
 
   // Helper currency formatter
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      maximumFractionDigits: 0,
-    }).format(val);
+    return formatBs(val);
   };
 
   return (
@@ -248,19 +250,21 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
               Gestión de Productos
             </h2>
             <p className="text-xs text-slate-500">
-              Catálogo general y administración de precios y características del supermercado.
+              Catálogo general y consulta de productos del supermercado.
             </p>
           </div>
         </div>
 
-        <button
-          id="btn-nuevo-producto"
-          onClick={handleOpenCreateModal}
-          className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald-200/60 transition-all flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Nuevo Producto</span>
-        </button>
+        {!isCashier && (
+          <button
+            id="btn-nuevo-producto"
+            onClick={handleOpenCreateModal}
+            className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-lg shadow-emerald-200/60 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Nuevo Producto</span>
+          </button>
+        )}
       </div>
 
       {/* Search and Filters Bar */}
@@ -458,25 +462,29 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                           <Eye className="w-4 h-4" />
                         </button>
 
-                        {/* Editar */}
-                        <button
-                          onClick={() => handleOpenEditModal(prod)}
-                          className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-800 border border-blue-200 rounded-lg transition-colors cursor-pointer"
-                          title="Editar producto"
-                          aria-label="Editar"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
+                        {/* Editar - Solo Administrador */}
+                        {!isCashier && (
+                          <button
+                            onClick={() => handleOpenEditModal(prod)}
+                            className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-800 border border-blue-200 rounded-lg transition-colors cursor-pointer"
+                            title="Editar producto"
+                            aria-label="Editar"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        )}
 
-                        {/* Eliminar */}
-                        <button
-                          onClick={() => setDeletingProduct(prod)}
-                          className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-800 border border-rose-200 rounded-lg transition-colors cursor-pointer"
-                          title="Eliminar producto"
-                          aria-label="Eliminar"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {/* Eliminar - Solo Administrador */}
+                        {!isCashier && (
+                          <button
+                            onClick={() => setDeletingProduct(prod)}
+                            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-800 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+                            title="Eliminar producto"
+                            aria-label="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -670,7 +678,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                 {/* Precio de Compra */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Precio de Compra (COP) *
+                    Precio de Compra (Bs) *
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -678,11 +686,11 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                     </div>
                     <input
                       type="number"
-                      step="1"
+                      step="0.01"
                       min="0"
                       value={purchasePrice}
                       onChange={(e) => setPurchasePrice(e.target.value)}
-                      placeholder="Ej: 2800"
+                      placeholder="Ej: 28.50"
                       className={`w-full pl-9 pr-3 py-2 bg-white border rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none font-semibold ${
                         formErrors.purchasePrice
                           ? 'border-rose-500 ring-1 ring-rose-500'
@@ -700,7 +708,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
                 {/* Precio de Venta */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Precio de Venta (COP) *
+                    Precio de Venta (Bs) *
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">

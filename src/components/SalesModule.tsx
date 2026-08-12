@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Product, Sale, SaleItem, PaymentMethod, User } from '../types';
+import { formatBs } from '../utils/formatters';
 import {
   Search,
   ShoppingCart,
@@ -123,16 +124,6 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
       isTenderedSufficient: paymentMethod === 'efectivo' ? tenderedNum >= total : true,
     };
   }, [cartItems, manualDiscount, amountTendered, paymentMethod]);
-
-  // Format COP Currency
-  const formatCOP = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   // Add product to cart
   const handleAddToCart = (product: Product) => {
@@ -274,7 +265,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
     if (paymentMethod === 'efectivo') {
       if (!amountTendered || cartSummary.tenderedNum < cartSummary.total) {
         showToast(
-          `Monto recibido insuficiente. Se requiere mínimo ${formatCOP(cartSummary.total)}`,
+          `Monto recibido insuficiente. Se requiere mínimo ${formatBs(cartSummary.total)}`,
           'error'
         );
         return;
@@ -456,7 +447,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-xs text-slate-900">
-                          {formatCOP(prod.salePrice)}
+                          {formatBs(prod.salePrice)}
                         </p>
                         <span
                           className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
@@ -530,7 +521,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
 
                     <div className="mt-2 flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-900">
-                        {formatCOP(product.salePrice)}
+                        {formatBs(product.salePrice)}
                       </span>
                       <div className="p-1 rounded-md bg-emerald-50 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                         <Plus className="w-3.5 h-3.5" />
@@ -552,7 +543,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
 
               {cartItems.length > 0 && (
                 <span className="text-xs font-semibold text-slate-600">
-                  Subtotal: <strong className="text-slate-900 font-bold">{formatCOP(cartSummary.subtotal)}</strong>
+                  Subtotal: <strong className="text-slate-900 font-bold">{formatBs(cartSummary.subtotal)}</strong>
                 </span>
               )}
             </div>
@@ -615,7 +606,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
 
                         {/* Unit Price */}
                         <td className="py-3 px-3 text-right font-medium text-slate-700 whitespace-nowrap">
-                          {formatCOP(item.unitPrice)}
+                          {formatBs(item.unitPrice)}
                         </td>
 
                         {/* Quantity Controls */}
@@ -656,7 +647,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
 
                         {/* Subtotal */}
                         <td className="py-3 px-3 text-right font-bold text-slate-900 whitespace-nowrap">
-                          {formatCOP(item.subtotal)}
+                          {formatBs(item.subtotal)}
                         </td>
 
                         {/* Delete button */}
@@ -694,19 +685,19 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
           <div className="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
             <div className="flex justify-between text-xs text-slate-600">
               <span>Subtotal:</span>
-              <span className="font-semibold text-slate-900">{formatCOP(cartSummary.subtotal)}</span>
+              <span className="font-semibold text-slate-900">{formatBs(cartSummary.subtotal)}</span>
             </div>
 
             {/* Manual Discount Input */}
             <div className="flex items-center justify-between gap-2 text-xs text-slate-600 pt-1">
               <span className="flex items-center gap-1">
                 <Tag className="w-3.5 h-3.5 text-slate-400" />
-                Descuento ($):
+                Descuento (Bs):
               </span>
               <input
                 type="number"
                 min="0"
-                step="500"
+                step="0.5"
                 value={manualDiscount}
                 onChange={(e) => setManualDiscount(e.target.value)}
                 placeholder="0"
@@ -717,7 +708,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
             <div className="border-t border-slate-200 pt-2.5 mt-2 flex justify-between items-baseline">
               <span className="text-sm font-bold text-slate-800">TOTAL A PAGAR:</span>
               <span className="text-2xl font-black text-emerald-600 font-mono tracking-tight">
-                {formatCOP(cartSummary.total)}
+                {formatBs(cartSummary.total)}
               </span>
             </div>
           </div>
@@ -773,43 +764,60 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
           {paymentMethod === 'efectivo' && (
             <div className="p-4 bg-emerald-50/60 border border-emerald-200/80 rounded-xl space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-emerald-950 mb-1">
-                  Monto Recibido del Cliente
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-emerald-950">
+                    Monto Recibido del Cliente (Efectivo)
+                  </label>
+                  {amountTendered !== '' && (
+                    <button
+                      type="button"
+                      onClick={() => setAmountTendered('')}
+                      className="text-[11px] font-bold text-rose-600 hover:text-rose-800 cursor-pointer"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">
-                    $
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold font-mono text-xs">
+                    Bs
                   </span>
                   <input
                     type="number"
+                    step="0.10"
                     value={amountTendered}
                     onChange={(e) => setAmountTendered(e.target.value)}
-                    placeholder="Ejemplo: 20000"
-                    className="w-full pl-7 pr-3 py-2 bg-white border border-emerald-300 rounded-lg text-sm font-bold font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Ejemplo: 50 o 100"
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-emerald-300 rounded-lg text-sm font-bold font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               </div>
 
-              {/* Quick Cash Presets */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[10px] text-emerald-800 font-medium">Billetes:</span>
-                {[10000, 20000, 50000, 100000].map((preset) => (
+              {/* Quick Cash Presets - Billetes de Bolivia */}
+              <div className="space-y-1.5">
+                <span className="block text-[10px] text-emerald-800 font-bold uppercase tracking-wider">
+                  Billetes en Bolivia (10, 20, 50, 100, 200 Bs):
+                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[10, 20, 50, 100, 200].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => handlePresetTendered(preset)}
+                      className="px-2.5 py-1.5 bg-white hover:bg-emerald-100 active:bg-emerald-200 border border-emerald-300 rounded-lg text-xs font-mono font-bold text-emerald-950 cursor-pointer shadow-2xs transition-colors"
+                      title={`Ingresar billete de ${preset} Bs`}
+                    >
+                      Bs {preset}
+                    </button>
+                  ))}
                   <button
-                    key={preset}
                     type="button"
-                    onClick={() => handlePresetTendered(preset)}
-                    className="px-2 py-1 bg-white hover:bg-emerald-100 border border-emerald-300 rounded text-[11px] font-mono font-bold text-emerald-900 cursor-pointer"
+                    onClick={() => handlePresetTendered(cartSummary.total)}
+                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold cursor-pointer shadow-2xs transition-colors"
                   >
-                    ${preset / 1000}k
+                    Exacto
                   </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => handlePresetTendered(cartSummary.total)}
-                  className="px-2 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-[11px] font-bold cursor-pointer"
-                >
-                  Exacto
-                </button>
+                </div>
               </div>
 
               {/* Change Calculation */}
@@ -820,7 +828,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
                     cartSummary.isTenderedSufficient ? 'text-emerald-700' : 'text-rose-600'
                   }`}
                 >
-                  {formatCOP(cartSummary.changeGiven)}
+                  {formatBs(cartSummary.changeGiven)}
                 </span>
               </div>
             </div>
@@ -892,10 +900,10 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
                       <tr key={it.productId}>
                         <td className="py-2 pr-2">
                           <p className="font-semibold text-slate-800 line-clamp-1">{it.name}</p>
-                          <span className="text-[10px] text-slate-400 font-mono">{it.quantity} ud x {formatCOP(it.unitPrice)}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">{it.quantity} ud x {formatBs(it.unitPrice)}</span>
                         </td>
-                        <td className="py-2 text-right font-mono text-slate-600">{formatCOP(it.unitPrice)}</td>
-                        <td className="py-2 text-right font-mono font-bold text-slate-900">{formatCOP(it.subtotal)}</td>
+                        <td className="py-2 text-right font-mono text-slate-600">{formatBs(it.unitPrice)}</td>
+                        <td className="py-2 text-right font-mono font-bold text-slate-900">{formatBs(it.subtotal)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -906,17 +914,17 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
               <div className="border-t border-dashed border-slate-300 pt-3 space-y-1 text-xs">
                 <div className="flex justify-between text-slate-600">
                   <span>Subtotal:</span>
-                  <span className="font-mono">{formatCOP(completedSale.subtotal)}</span>
+                  <span className="font-mono">{formatBs(completedSale.subtotal)}</span>
                 </div>
                 {completedSale.discount > 0 && (
                   <div className="flex justify-between text-emerald-700 font-medium">
                     <span>Descuento aplicado:</span>
-                    <span className="font-mono">-{formatCOP(completedSale.discount)}</span>
+                    <span className="font-mono">-{formatBs(completedSale.discount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-bold text-slate-900 pt-1 border-t border-slate-200">
                   <span>TOTAL PAGADO:</span>
-                  <span className="font-mono text-base text-emerald-700">{formatCOP(completedSale.total)}</span>
+                  <span className="font-mono text-base text-emerald-700">{formatBs(completedSale.total)}</span>
                 </div>
                 <div className="flex justify-between text-xs text-slate-600 pt-1">
                   <span>Método de pago:</span>
@@ -926,11 +934,11 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
                   <>
                     <div className="flex justify-between text-xs text-slate-500">
                       <span>Monto recibido:</span>
-                      <span className="font-mono">{formatCOP(completedSale.amountTendered || 0)}</span>
+                      <span className="font-mono">{formatBs(completedSale.amountTendered || 0)}</span>
                     </div>
                     <div className="flex justify-between text-xs text-slate-800 font-bold">
                       <span>Cambio entregado:</span>
-                      <span className="font-mono text-emerald-700">{formatCOP(completedSale.changeGiven || 0)}</span>
+                      <span className="font-mono text-emerald-700">{formatBs(completedSale.changeGiven || 0)}</span>
                     </div>
                   </>
                 )}
@@ -1007,7 +1015,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
                     <div className="text-right flex items-center gap-3">
                       <div>
                         <p className="text-xs font-bold text-slate-900 font-mono">
-                          {formatCOP(sale.total)}
+                          {formatBs(sale.total)}
                         </p>
                       </div>
                       <button
