@@ -19,6 +19,7 @@ import {
   INITIAL_SALES,
   INITIAL_SUPERMARKETS,
 } from './data/mockData';
+import { LandingPage } from './components/LandingPage';
 import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -76,6 +77,8 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [authView, setAuthView] = useState<'landing' | 'login' | 'register-supermarket'>('landing');
+  const [prefilledCredentials, setPrefilledCredentials] = useState<{ identifier?: string; password?: string }>({});
 
   // Load all tables from Supabase on mount
   useEffect(() => {
@@ -354,6 +357,7 @@ export default function App() {
   // Handle Logout (Clean all temporary and transient states)
   const handleLogout = () => {
     setCurrentUser(null);
+    setAuthView('landing');
     setActiveTab('inicio');
     setIsProfileModalOpen(false);
     setIsSupabaseModalOpen(false);
@@ -1028,18 +1032,43 @@ export default function App() {
     );
   };
 
-  // Render Login screen if no active session
+  // Render Landing Page or Login screen if no active session
   if (!currentUser) {
     return (
-      <div className="font-sans antialiased text-slate-900 bg-slate-50 min-h-screen">
-        <Login
-          onLoginSuccess={handleLoginSuccess}
-          users={users}
-          employees={employees}
-          supermarkets={supermarkets}
-          onRegisterUser={handleRegisterUser}
-          onRegisterSupermarket={handleRegisterSupermarket}
-        />
+      <div className="font-sans antialiased text-slate-100 bg-slate-950 min-h-screen">
+        {authView === 'landing' ? (
+          <LandingPage
+            onNavigateToLogin={() => {
+              setPrefilledCredentials({});
+              setAuthView('login');
+            }}
+            onNavigateToRegisterSupermarket={() => {
+              setPrefilledCredentials({});
+              setAuthView('register-supermarket');
+            }}
+            onNavigateToRegisterEmployee={() => {
+              setPrefilledCredentials({});
+              setAuthView('login');
+            }}
+            supermarkets={supermarkets}
+          />
+        ) : (
+          <Login
+            onLoginSuccess={handleLoginSuccess}
+            users={users}
+            employees={employees}
+            supermarkets={supermarkets}
+            onRegisterUser={handleRegisterUser}
+            onRegisterSupermarket={handleRegisterSupermarket}
+            initialMode={authView === 'register-supermarket' ? 'register-supermarket' : 'login'}
+            initialIdentifier={prefilledCredentials.identifier || ''}
+            initialPassword={prefilledCredentials.password || ''}
+            onBackToLanding={() => {
+              setPrefilledCredentials({});
+              setAuthView('landing');
+            }}
+          />
+        )}
 
         {/* Global Toast Notifications */}
         <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm">
@@ -1048,15 +1077,15 @@ export default function App() {
               key={toast.id}
               className={`p-3.5 rounded-xl shadow-lg border flex items-center gap-3 text-sm animate-fadeIn ${
                 toast.type === 'success'
-                  ? 'bg-white text-slate-800 border-emerald-200 font-medium'
+                  ? 'bg-slate-900 text-slate-100 border-emerald-500/40 font-medium'
                   : toast.type === 'error'
-                  ? 'bg-white text-slate-800 border-rose-200 font-medium'
-                  : 'bg-white text-slate-800 border-slate-200 font-medium'
+                  ? 'bg-slate-900 text-slate-100 border-rose-500/40 font-medium'
+                  : 'bg-slate-900 text-slate-100 border-slate-700 font-medium'
               }`}
             >
-              {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />}
-              {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />}
-              {toast.type === 'info' && <Info className="w-5 h-5 text-blue-600 shrink-0" />}
+              {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />}
+              {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />}
+              {toast.type === 'info' && <Info className="w-5 h-5 text-blue-400 shrink-0" />}
               <span>{toast.message}</span>
             </div>
           ))}

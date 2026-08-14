@@ -51,6 +51,10 @@ interface LoginProps {
   users?: (User & { password: string })[];
   employees?: Employee[];
   supermarkets?: Supermarket[];
+  initialMode?: 'login' | 'register-supermarket' | 'register-employee';
+  initialIdentifier?: string;
+  initialPassword?: string;
+  onBackToLanding?: () => void;
 }
 
 export const Login: React.FC<LoginProps> = ({
@@ -60,19 +64,33 @@ export const Login: React.FC<LoginProps> = ({
   users,
   employees,
   supermarkets = [],
+  initialMode = 'login',
+  initialIdentifier = '',
+  initialPassword = '',
+  onBackToLanding,
 }) => {
   const usersList = users && users.length > 0 ? users : INITIAL_USERS;
 
   // View state: 'login' | 'register-supermarket' | 'register-employee'
-  const [mode, setMode] = useState<'login' | 'register-supermarket' | 'register-employee'>('login');
+  const [mode, setMode] = useState<'login' | 'register-supermarket' | 'register-employee'>(initialMode);
 
   // Login form state
-  const [identifier, setIdentifier] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
+  const [identifier, setIdentifier] = useState(initialIdentifier);
+  const [loginPassword, setLoginPassword] = useState(initialPassword);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successNotice, setSuccessNotice] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Sync initial props if they change
+  useEffect(() => {
+    if (initialMode) setMode(initialMode);
+  }, [initialMode]);
+
+  useEffect(() => {
+    if (initialIdentifier) setIdentifier(initialIdentifier);
+    if (initialPassword) setLoginPassword(initialPassword);
+  }, [initialIdentifier, initialPassword]);
 
   // Employee Registration form states
   const [regSupermarketId, setRegSupermarketId] = useState('');
@@ -370,7 +388,19 @@ export const Login: React.FC<LoginProps> = ({
   // If in 'register-supermarket' mode, render the SupermarketRegisterForm
   if (mode === 'register-supermarket') {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4 relative overflow-y-auto font-sans py-10">
+      <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-center items-center p-4 relative overflow-y-auto font-sans py-10">
+        {onBackToLanding && (
+          <div className="w-full max-w-2xl mb-4 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={onBackToLanding}
+              className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700"
+            >
+              <span>← Volver a la página principal</span>
+            </button>
+            <span className="text-xs text-indigo-400 font-medium">Registro de Nuevo Supermercado</span>
+          </div>
+        )}
         <SupermarketRegisterForm
           existingUsers={usersList}
           existingSupermarkets={supermarkets}
@@ -386,23 +416,41 @@ export const Login: React.FC<LoginProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4 relative overflow-y-auto font-sans py-8">
+    <div className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] text-slate-100 flex flex-col justify-center items-center p-4 relative overflow-y-auto font-sans py-8">
+      {/* Top Navigation Bar on Login Screen */}
+      <div className="w-full max-w-md mb-4 flex items-center justify-between">
+        {onBackToLanding ? (
+          <button
+            id="back-to-landing-btn"
+            type="button"
+            onClick={onBackToLanding}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white bg-slate-900/90 hover:bg-slate-800 px-3.5 py-1.5 rounded-xl border border-slate-800 transition-all cursor-pointer shadow-xs"
+          >
+            <span>← Inicio</span>
+          </button>
+        ) : <div />}
+        <span className="text-[11px] font-semibold text-emerald-400 flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          Cloud SaaS Activo
+        </span>
+      </div>
+
       <div className="w-full max-w-md my-auto">
         {/* Header Branding */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center p-3.5 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-200/60 mb-2.5">
-            <ShoppingBag className="w-9 h-9 text-white" />
+          <div className="inline-flex items-center justify-center p-3.5 bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 rounded-2xl shadow-xl shadow-indigo-500/20 mb-2.5">
+            <ShoppingBag className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">SuperMercado Express</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Plataforma SaaS Multi-Supermercados — Control de Acceso
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">SuperMercado <span className="text-indigo-400">Express</span></h1>
+          <p className="text-xs text-slate-400 mt-1">
+            Plataforma SaaS Multi-Supermercados — Portal de Acceso
           </p>
         </div>
 
         {/* Card Switcher Tabs */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
           {/* Mode Navigation Header */}
-          <div className="flex border-b border-slate-200 bg-slate-100/80 p-1.5 gap-1">
+          <div className="flex border-b border-slate-800 bg-slate-950/60 p-1.5 gap-1">
             <button
               type="button"
               onClick={() => {
@@ -412,8 +460,8 @@ export const Login: React.FC<LoginProps> = ({
               }}
               className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 mode === 'login'
-                  ? 'bg-white text-indigo-700 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <UserCheck className="w-4 h-4" />
@@ -426,9 +474,9 @@ export const Login: React.FC<LoginProps> = ({
                 setErrorMessage('');
                 setSuccessNotice('');
               }}
-              className="flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer text-indigo-700 hover:bg-indigo-50 border border-transparent hover:border-indigo-200"
+              className="flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer text-emerald-400 hover:bg-emerald-950/30 border border-transparent hover:border-emerald-500/30"
             >
-              <Building2 className="w-4 h-4 text-indigo-600" />
+              <Building2 className="w-4 h-4 text-emerald-400" />
               <span>Nuevo Supermercado</span>
             </button>
             <button
@@ -440,8 +488,8 @@ export const Login: React.FC<LoginProps> = ({
               }}
               className={`py-2 px-3 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
                 mode === 'register-employee'
-                  ? 'bg-white text-indigo-700 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
               title="Registrar Empleado / Cajero"
             >
@@ -453,10 +501,10 @@ export const Login: React.FC<LoginProps> = ({
           <div className="p-6 md:p-8">
             {/* SUCCESS NOTICE (When registration submitted) */}
             {successNotice && (
-              <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-3 text-amber-900 text-xs font-medium animate-fadeIn">
-                <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3 text-amber-200 text-xs font-medium animate-fadeIn">
+                <Clock className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-amber-950 mb-1">¡Registro Recibido!</p>
+                  <p className="font-bold text-amber-300 mb-1">¡Registro Recibido!</p>
                   <p className="leading-relaxed">{successNotice}</p>
                 </div>
               </div>
@@ -464,8 +512,8 @@ export const Login: React.FC<LoginProps> = ({
 
             {/* ERROR MESSAGE (Login Error) */}
             {errorMessage && (
-              <div className="mb-6 p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 text-rose-700 text-xs animate-fadeIn">
-                <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+              <div className="mb-6 p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-start gap-3 text-rose-300 text-xs animate-fadeIn">
+                <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
                 <span className="font-medium leading-relaxed">{errorMessage}</span>
               </div>
             )}
@@ -476,12 +524,12 @@ export const Login: React.FC<LoginProps> = ({
                 <div>
                   <label
                     htmlFor="login-identifier"
-                    className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
+                    className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5"
                   >
                     Usuario o Correo Electrónico
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
                       <Mail className="w-4 h-4" />
                     </div>
                     <input
@@ -489,8 +537,8 @@ export const Login: React.FC<LoginProps> = ({
                       type="text"
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
-                      placeholder="admin@supermercado.com o superadmin"
-                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-xs"
+                      placeholder="superadmin, admin o tu@correo.com"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-xs"
                       required
                     />
                   </div>
@@ -499,12 +547,12 @@ export const Login: React.FC<LoginProps> = ({
                 <div>
                   <label
                     htmlFor="login-password"
-                    className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
+                    className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5"
                   >
                     Contraseña
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
                       <Lock className="w-4 h-4" />
                     </div>
                     <input
@@ -513,13 +561,13 @@ export const Login: React.FC<LoginProps> = ({
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-xs"
+                      className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-xs"
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                       aria-label={showLoginPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                     >
                       {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -531,26 +579,26 @@ export const Login: React.FC<LoginProps> = ({
                   id="login-submit-btn"
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl shadow-lg shadow-indigo-200/60 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
+                  className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-600/30 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
                 >
                   {isLoading ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>Verificando...</span>
+                      <span>Verificando credenciales...</span>
                     </>
                   ) : (
                     <>
                       <UserCheck className="w-4 h-4" />
-                      <span>Iniciar Sesión</span>
+                      <span>Iniciar Sesión en el Sistema</span>
                     </>
                   )}
                 </button>
 
                 {/* Banner: Registrar mi Supermercado Call to Action */}
-                <div className="mt-4 p-3.5 bg-indigo-50/70 border border-indigo-100 rounded-xl flex items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-2 text-indigo-900">
-                    <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <span>¿Eres dueño de un supermercado?</span>
+                <div className="mt-4 p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl flex items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2 text-slate-300">
+                    <Building2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>¿Nuevo supermercado?</span>
                   </div>
                   <button
                     type="button"
@@ -558,7 +606,7 @@ export const Login: React.FC<LoginProps> = ({
                       setMode('register-supermarket');
                       setErrorMessage('');
                     }}
-                    className="font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 hover:underline cursor-pointer"
+                    className="font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 hover:underline cursor-pointer"
                   >
                     <span>Regístralo aquí</span>
                     <ArrowRight className="w-3 h-3" />
@@ -570,50 +618,50 @@ export const Login: React.FC<LoginProps> = ({
             {/* TAB 2: EMPLOYEE REGISTRATION FORM */}
             {mode === 'register-employee' && (
               <form onSubmit={handleEmployeeRegisterSubmit} className="space-y-4">
-                <div className="p-3 bg-emerald-50/60 border border-emerald-100 rounded-xl text-xs text-slate-600 mb-2">
-                  <p className="font-bold text-emerald-950 mb-0.5">Solicitud de Registro de Empleado</p>
-                  <p className="text-[11px]">
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-xs text-slate-300 mb-2">
+                  <p className="font-bold text-emerald-300 mb-0.5">Solicitud de Registro de Empleado</p>
+                  <p className="text-[11px] text-slate-400">
                     Complete el formulario seleccionando su supermercado de destino. Su cuenta quedará en <strong>Estado Pendiente</strong> hasta que el Administrador la autorice.
                   </p>
                 </div>
 
                 {regErrors.duplicate && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs font-medium flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                     <span>{regErrors.duplicate}</span>
                   </div>
                 )}
 
                 {regErrors.general && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs font-medium flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
                     <span>{regErrors.general}</span>
                   </div>
                 )}
 
                 {/* 1. SELECCIÓN Y BÚSQUEDA DE SUPERMERCADO MEDIANTE COMBOBOX */}
                 <div className="relative" ref={comboboxRef}>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Supermercado asignado <span className="text-rose-500">*</span>
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
+                    Supermercado asignado <span className="text-rose-400">*</span>
                   </label>
 
                   {/* Trigger Button */}
                   <div
                     onClick={() => setIsComboboxOpen(!isComboboxOpen)}
-                    className={`w-full px-3 py-2 bg-white border rounded-xl text-xs flex items-center justify-between gap-2 cursor-pointer transition-all ${
+                    className={`w-full px-3 py-2 bg-slate-950 border rounded-xl text-xs flex items-center justify-between gap-2 cursor-pointer transition-all ${
                       regErrors.supermarket
-                        ? 'border-rose-400 ring-1 ring-rose-300'
+                        ? 'border-rose-500 ring-1 ring-rose-500'
                         : isComboboxOpen
-                        ? 'border-indigo-500 ring-2 ring-indigo-100 shadow-xs'
-                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
+                        ? 'border-indigo-500 ring-1 ring-indigo-500 shadow-xs'
+                        : 'border-slate-800 hover:border-slate-700 hover:bg-slate-900/60'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div
                         className={`p-1.5 rounded-lg shrink-0 ${
                           regSupermarketId
-                            ? 'bg-indigo-100 text-indigo-700'
-                            : 'bg-slate-100 text-slate-400'
+                            ? 'bg-indigo-500/20 text-indigo-300'
+                            : 'bg-slate-900 text-slate-500'
                         }`}
                       >
                         <Building2 className="w-3.5 h-3.5" />
@@ -621,15 +669,15 @@ export const Login: React.FC<LoginProps> = ({
                       <div className="min-w-0 text-left">
                         {regSupermarketId ? (
                           <>
-                            <p className="font-bold text-slate-900 text-xs truncate">
+                            <p className="font-bold text-white text-xs truncate">
                               {regSupermarketName}
                             </p>
-                            <p className="text-[10px] text-slate-500 truncate">
+                            <p className="text-[10px] text-slate-400 truncate">
                               {supermarkets.find((s) => s.id === regSupermarketId)?.address || 'Supermercado seleccionado'}
                             </p>
                           </>
                         ) : (
-                          <p className="text-slate-400 font-normal">
+                          <p className="text-slate-500 font-normal">
                             Seleccione o busque un supermercado...
                           </p>
                         )}
@@ -646,35 +694,35 @@ export const Login: React.FC<LoginProps> = ({
                             setRegSupermarketName('');
                             setSmSearchQuery('');
                           }}
-                          className="p-1 hover:bg-slate-100 hover:text-slate-600 rounded-md transition-colors"
+                          className="p-1 hover:bg-slate-800 hover:text-white rounded-md transition-colors"
                           title="Limpiar selección"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      <ChevronsUpDown className="w-4 h-4 text-slate-400" />
+                      <ChevronsUpDown className="w-4 h-4 text-slate-500" />
                     </div>
                   </div>
 
                   {/* Dropdown Popover */}
                   {isComboboxOpen && (
-                    <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl p-2 space-y-2 animate-in fade-in-0 zoom-in-95 duration-150">
+                    <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-2 space-y-2 animate-in fade-in-0 zoom-in-95 duration-150">
                       {/* Search Bar inside Combobox */}
                       <div className="relative">
-                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input
                           ref={searchInputRef}
                           type="text"
                           value={smSearchQuery}
                           onChange={(e) => setSmSearchQuery(e.target.value)}
                           placeholder="Buscar por nombre, dirección o correo..."
-                          className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                          className="w-full pl-8 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                         />
                         {smSearchQuery && (
                           <button
                             type="button"
                             onClick={() => setSmSearchQuery('')}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded"
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 rounded"
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -695,9 +743,9 @@ export const Login: React.FC<LoginProps> = ({
                             );
                           }).length === 0 ? (
                           <div className="text-center py-4 px-2">
-                            <Store className="w-6 h-6 text-slate-300 mx-auto mb-1" />
-                            <p className="text-xs font-semibold text-slate-600">No se encontraron resultados</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">
+                            <Store className="w-6 h-6 text-slate-500 mx-auto mb-1" />
+                            <p className="text-xs font-semibold text-slate-400">No se encontraron resultados</p>
+                            <p className="text-[10px] text-slate-500 mt-0.5">
                               {supermarkets.length === 0
                                 ? 'No hay supermercados registrados.'
                                 : 'Pruebe con otro término de búsqueda.'}
@@ -730,20 +778,20 @@ export const Login: React.FC<LoginProps> = ({
                                   }}
                                   className={`w-full text-left p-2 rounded-lg border transition-all flex items-center justify-between gap-2 cursor-pointer ${
                                     isSelected
-                                      ? 'bg-indigo-50/90 border-indigo-500 text-indigo-950 font-bold ring-1 ring-indigo-200'
-                                      : 'bg-white hover:bg-slate-50 border-slate-100 text-slate-700'
+                                      ? 'bg-indigo-950/80 border-indigo-500 text-white font-bold ring-1 ring-indigo-500/50'
+                                      : 'bg-slate-950/60 hover:bg-slate-800 border-slate-800 text-slate-300'
                                   }`}
                                 >
                                   <div className="flex items-center gap-2 min-w-0">
                                     <div
                                       className={`p-1.5 rounded-md shrink-0 ${
-                                        isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'
+                                        isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'
                                       }`}
                                     >
                                       <Building2 className="w-3.5 h-3.5" />
                                     </div>
                                     <div className="min-w-0">
-                                      <p className="text-xs font-semibold text-slate-800 truncate">
+                                      <p className="text-xs font-semibold text-slate-200 truncate">
                                         {sm.name}
                                       </p>
                                       <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
@@ -757,14 +805,14 @@ export const Login: React.FC<LoginProps> = ({
                                     <span
                                       className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
                                         sm.status === 'activo'
-                                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                          : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                          : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                                       }`}
                                     >
                                       {sm.status === 'activo' ? 'Activo' : 'Pendiente'}
                                     </span>
                                     {isSelected && (
-                                      <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                      <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                                     )}
                                   </div>
                                 </button>
@@ -776,8 +824,8 @@ export const Login: React.FC<LoginProps> = ({
                   )}
 
                   {regErrors.supermarket && (
-                    <p className="text-[10px] text-rose-500 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
+                    <p className="text-[10px] text-rose-400 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
                       <span>{regErrors.supermarket}</span>
                     </p>
                   )}
@@ -785,7 +833,7 @@ export const Login: React.FC<LoginProps> = ({
 
                 {/* Nombre Completo */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
                     Nombre Completo *
                   </label>
                   <input
@@ -793,60 +841,60 @@ export const Login: React.FC<LoginProps> = ({
                     value={regFullName}
                     onChange={(e) => setRegFullName(e.target.value)}
                     placeholder="Ej: Laura Sofía Torres Peña"
-                    className={`w-full px-3 py-2 bg-white border rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none ${
-                      regErrors.fullName ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 focus:border-indigo-500'
+                    className={`w-full px-3 py-2 bg-slate-950 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none ${
+                      regErrors.fullName ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-800 focus:border-indigo-500'
                     }`}
                   />
                   {regErrors.fullName && (
-                    <p className="text-[10px] text-rose-500 mt-1">{regErrors.fullName}</p>
+                    <p className="text-[10px] text-rose-400 mt-1">{regErrors.fullName}</p>
                   )}
                 </div>
 
                 {/* Nombre de Usuario */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider">
                       Nombre de Usuario (Login) *
                     </label>
                     {regUsername.trim() && (
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
                           regUsernameCheck?.available
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : 'bg-rose-50 text-rose-700'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                         }`}
                       >
                         {regUsernameCheck?.available ? (
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                         ) : (
-                          <AlertCircle className="w-3 h-3 text-rose-600" />
+                          <AlertCircle className="w-3 h-3 text-rose-400" />
                         )}
                         {regUsernameCheck?.available ? 'Disponible' : 'Ya en uso'}
                       </span>
                     )}
                   </div>
                   <div className="relative">
-                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <KeyRound className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       value={regUsername}
                       onChange={(e) => setRegUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
                       placeholder="Ej: ltorres"
-                      className={`w-full pl-9 pr-3 py-2 bg-white border rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none ${
+                      className={`w-full pl-9 pr-3 py-2 bg-slate-950 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none ${
                         regErrors.username || (regUsername.trim() && !regUsernameCheck?.available)
                           ? 'border-rose-500 ring-1 ring-rose-500'
-                          : 'border-slate-200 focus:border-indigo-500'
+                          : 'border-slate-800 focus:border-indigo-500'
                       }`}
                     />
                   </div>
                   {regErrors.username && (
-                    <p className="text-[10px] text-rose-500 mt-1">{regErrors.username}</p>
+                    <p className="text-[10px] text-rose-400 mt-1">{regErrors.username}</p>
                   )}
                 </div>
 
                 {/* Documento de Identidad */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
                     Documento de Identidad *
                   </label>
                   <input
@@ -854,61 +902,61 @@ export const Login: React.FC<LoginProps> = ({
                     value={regDocumentId}
                     onChange={(e) => setRegDocumentId(e.target.value)}
                     placeholder="Ej: 10482910"
-                    className={`w-full px-3 py-2 bg-white border rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none ${
-                      regErrors.documentId ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 focus:border-indigo-500'
+                    className={`w-full px-3 py-2 bg-slate-950 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none ${
+                      regErrors.documentId ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-800 focus:border-indigo-500'
                     }`}
                   />
                   {regErrors.documentId && (
-                    <p className="text-[10px] text-rose-500 mt-1">{regErrors.documentId}</p>
+                    <p className="text-[10px] text-rose-400 mt-1">{regErrors.documentId}</p>
                   )}
                 </div>
 
                 {/* Correo Electrónico */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider">
                       Correo Electrónico *
                     </label>
                     {regEmail.trim() && (
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
                           regEmailCheck?.available
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : 'bg-rose-50 text-rose-700'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                         }`}
                       >
                         {regEmailCheck?.available ? (
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                         ) : (
-                          <AlertCircle className="w-3 h-3 text-rose-600" />
+                          <AlertCircle className="w-3 h-3 text-rose-400" />
                         )}
                         {regEmailCheck?.available ? 'Disponible' : 'Ya en uso'}
                       </span>
                     )}
                   </div>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="email"
                       value={regEmail}
                       onChange={handleRegEmailChange}
                       placeholder="laura.torres@supermercado.com"
-                      className={`w-full pl-9 pr-3 py-2 bg-white border rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none ${
+                      className={`w-full pl-9 pr-3 py-2 bg-slate-950 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none ${
                         regErrors.email || (regEmail.trim() && !regEmailCheck?.available)
                           ? 'border-rose-500 ring-1 ring-rose-500'
-                          : 'border-slate-200 focus:border-indigo-500'
+                          : 'border-slate-800 focus:border-indigo-500'
                       }`}
                     />
                   </div>
                   {regErrors.email && (
-                    <p className="text-[10px] text-rose-500 mt-1">{regErrors.email}</p>
+                    <p className="text-[10px] text-rose-400 mt-1">{regErrors.email}</p>
                   )}
                 </div>
 
                 {/* Teléfono y Cargo */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
                       Teléfono *
                     </label>
                     <input
@@ -916,16 +964,16 @@ export const Login: React.FC<LoginProps> = ({
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value)}
                       placeholder="+591 70000000"
-                      className={`w-full px-3 py-2 bg-white border rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none ${
-                        regErrors.phone ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 focus:border-indigo-500'
+                      className={`w-full px-3 py-2 bg-slate-950 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none ${
+                        regErrors.phone ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-800 focus:border-indigo-500'
                       }`}
                     />
                     {regErrors.phone && (
-                      <p className="text-[10px] text-rose-500 mt-1">{regErrors.phone}</p>
+                      <p className="text-[10px] text-rose-400 mt-1">{regErrors.phone}</p>
                     )}
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
                       Cargo Deseado *
                     </label>
                     <input
@@ -933,19 +981,19 @@ export const Login: React.FC<LoginProps> = ({
                       value={regCargo}
                       onChange={(e) => setRegCargo(e.target.value)}
                       placeholder="Cajero(a), Bodeguero"
-                      className={`w-full px-3 py-2 bg-white border rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none ${
-                        regErrors.cargo ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 focus:border-indigo-500'
+                      className={`w-full px-3 py-2 bg-slate-950 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none ${
+                        regErrors.cargo ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-800 focus:border-indigo-500'
                       }`}
                     />
                     {regErrors.cargo && (
-                      <p className="text-[10px] text-rose-500 mt-1">{regErrors.cargo}</p>
+                      <p className="text-[10px] text-rose-400 mt-1">{regErrors.cargo}</p>
                     )}
                   </div>
                 </div>
 
                 {/* Dirección */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
                     Dirección de Residencia *
                   </label>
                   <input
@@ -953,36 +1001,36 @@ export const Login: React.FC<LoginProps> = ({
                     value={regAddress}
                     onChange={(e) => setRegAddress(e.target.value)}
                     placeholder="Calle Los Álamos #456"
-                    className={`w-full px-3 py-2 bg-white border rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none ${
-                      regErrors.address ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 focus:border-indigo-500'
+                    className={`w-full px-3 py-2 bg-slate-950 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none ${
+                      regErrors.address ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-800 focus:border-indigo-500'
                     }`}
                   />
                   {regErrors.address && (
-                    <p className="text-[10px] text-rose-500 mt-1">{regErrors.address}</p>
+                    <p className="text-[10px] text-rose-400 mt-1">{regErrors.address}</p>
                   )}
                 </div>
 
                 {/* Fecha de Nacimiento */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
                     Fecha de Nacimiento *
                   </label>
                   <input
                     type="date"
                     value={regBirthDate}
                     onChange={(e) => setRegBirthDate(e.target.value)}
-                    className={`w-full px-3 py-2 bg-white border rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none ${
-                      regErrors.birthDate ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 focus:border-indigo-500'
+                    className={`w-full px-3 py-2 bg-slate-950 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none ${
+                      regErrors.birthDate ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-800 focus:border-indigo-500'
                     }`}
                   />
                   {regErrors.birthDate && (
-                    <p className="text-[10px] text-rose-500 mt-1">{regErrors.birthDate}</p>
+                    <p className="text-[10px] text-rose-400 mt-1">{regErrors.birthDate}</p>
                   )}
                 </div>
 
                 {/* Selector de Fotografía */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
                     Fotografía de Perfil *
                   </label>
                   <div className="flex items-center gap-2">
@@ -999,7 +1047,7 @@ export const Login: React.FC<LoginProps> = ({
                           onClick={() => setRegPhoto(preset)}
                           className={`w-7 h-7 rounded-full overflow-hidden border transition-all cursor-pointer ${
                             regPhoto === preset
-                              ? 'border-indigo-600 scale-110 ring-2 ring-indigo-200'
+                              ? 'border-indigo-500 scale-110 ring-2 ring-indigo-500/40'
                               : 'border-transparent opacity-60 hover:opacity-100'
                           }`}
                         >
@@ -1013,7 +1061,7 @@ export const Login: React.FC<LoginProps> = ({
                 {/* Contraseñas */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
                       Contraseña *
                     </label>
                     <div className="relative">
@@ -1022,25 +1070,25 @@ export const Login: React.FC<LoginProps> = ({
                         value={regPassword}
                         onChange={(e) => setRegPassword(e.target.value)}
                         placeholder="••••••••"
-                        className={`w-full pl-3 pr-8 py-2 bg-white border rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none ${
-                          regErrors.password ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 focus:border-indigo-500'
+                        className={`w-full pl-3 pr-8 py-2 bg-slate-950 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none ${
+                          regErrors.password ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-800 focus:border-indigo-500'
                         }`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowRegPassword(!showRegPassword)}
-                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
+                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-500 hover:text-slate-300"
                       >
                         {showRegPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                     {regErrors.password && (
-                      <p className="text-[10px] text-rose-500 mt-1">{regErrors.password}</p>
+                      <p className="text-[10px] text-rose-400 mt-1">{regErrors.password}</p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
                       Confirmar *
                     </label>
                     <div className="relative">
@@ -1049,20 +1097,20 @@ export const Login: React.FC<LoginProps> = ({
                         value={regConfirmPassword}
                         onChange={(e) => setRegConfirmPassword(e.target.value)}
                         placeholder="••••••••"
-                        className={`w-full pl-3 pr-8 py-2 bg-white border rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none ${
-                          regErrors.confirmPassword ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 focus:border-indigo-500'
+                        className={`w-full pl-3 pr-8 py-2 bg-slate-950 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none ${
+                          regErrors.confirmPassword ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-800 focus:border-indigo-500'
                         }`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
-                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
+                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-500 hover:text-slate-300"
                       >
                         {showRegConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                     {regErrors.confirmPassword && (
-                      <p className="text-[10px] text-rose-500 mt-1">{regErrors.confirmPassword}</p>
+                      <p className="text-[10px] text-rose-400 mt-1">{regErrors.confirmPassword}</p>
                     )}
                   </div>
                 </div>
@@ -1074,13 +1122,13 @@ export const Login: React.FC<LoginProps> = ({
                       setMode('login');
                       setRegErrors({});
                     }}
-                    className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                    className="flex-1 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition-colors cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition-colors cursor-pointer"
+                    className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-md transition-colors cursor-pointer"
                   >
                     Enviar Solicitud
                   </button>
