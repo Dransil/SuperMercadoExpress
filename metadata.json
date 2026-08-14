@@ -1,6 +1,6 @@
 {
   "name": "SuperMercado Express",
-  "description": "Sistema de ventas para supermercado con arquitectura SaaS Multi-Supermercado, Módulo 1 (Usuarios y Registro), Módulo 2 (Control de Acceso SaaS y Calendario), Módulo 3 (Inventario), Módulo 4 (Ventas POS), Módulo 5 (Reportes) y Módulo 6 (Panel de Estadísticas).",
+  "description": "Sistema de gestión y ventas para supermercados con arquitectura SaaS Multi-Tenant, control de acceso y licencias, punto de venta (POS), inventario, empleados, reportes y métricas en tiempo real.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

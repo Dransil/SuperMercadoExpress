@@ -33,7 +33,7 @@ export const CashierDashboard: React.FC<CashierDashboardProps> = ({
                 ¡Bienvenido(a), {currentUser.name}!
               </h2>
               <p className="text-sm text-slate-600 mt-1 max-w-xl">
-                Has iniciado sesión con el rol de <strong className="text-emerald-700">Cajero(a)</strong> en SuperMercado Express. El módulo de Ventas (POS) está habilitado.
+                Has iniciado sesión con el rol de <strong className="text-emerald-700">Cajero(a)</strong> en SuperMercado Express. El punto de venta (POS) está habilitado.
               </p>
             </div>
           </div>
@@ -113,13 +113,13 @@ export const CashierDashboard: React.FC<CashierDashboardProps> = ({
                 <ShoppingCart className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-slate-800 text-base">Módulo de Ventas Habilitado</h3>
+                <h3 className="font-bold text-slate-800 text-base">Punto de Venta Habilitado</h3>
                 <p className="text-xs text-slate-400">Control de Caja y Facturación</p>
               </div>
             </div>
 
             <p className="text-slate-600 text-sm leading-relaxed">
-              El <strong className="text-slate-800">Módulo 4: Ventas</strong> te permite realizar búsquedas por código o nombre de producto, añadir ítems al detalle de venta, aplicar descuentos y procesar pagos en efectivo, tarjeta o transferencia con emisión de comprobante y descuento automático de inventario.
+              El área de <strong className="text-slate-800">Ventas (POS)</strong> te permite realizar búsquedas por código o nombre de producto, añadir ítems al detalle de venta, aplicar descuentos y procesar pagos en efectivo, tarjeta o transferencia con emisión de comprobante y descuento automático de inventario.
             </p>
           </div>
 

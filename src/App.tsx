@@ -1049,7 +1049,7 @@ export default function App() {
       return currentUser.role === 'admin' ? 'Inicio — Administrador' : 'Inicio — Cajero';
     }
     if (activeTab === 'ventas') {
-      return 'Punto de Venta — Módulo de Ventas';
+      return 'Punto de Venta (POS) — Ventas';
     }
     if (activeTab === 'cierre') {
       return 'Cierre de Jornada — Arqueo y Contabilidad';

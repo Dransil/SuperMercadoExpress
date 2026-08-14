@@ -92,13 +92,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* Module 1 Info Box */}
+      {/* System Status Info Box */}
       <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-5 flex items-start gap-3.5 text-slate-700 text-sm">
         <Sparkles className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
         <div>
-          <h3 className="font-bold text-slate-800">Estado del Sistema — Módulo 1 (Usuarios y Empleados)</h3>
+          <h3 className="font-bold text-slate-800">Estado del Sistema — Gestión de Usuarios y Personal</h3>
           <p className="text-slate-600 text-xs mt-0.5 leading-relaxed">
-            Este módulo permite registrar, editar, eliminar y consultar el listado completo de empleados. Los módulos correspondientes a ventas, productos e inventario serán habilitados en posteriores etapas.
+            Desde este panel puedes registrar, autorizar y gestionar el personal asignado a tu supermercado, así como consultar métricas, ventas e inventario en tiempo real.
           </p>
         </div>
       </div>

@@ -230,45 +230,6 @@ export const Login: React.FC<LoginProps> = ({
     }, 400);
   };
 
-  // Quick Login Demo by username/key
-  const handleQuickLoginUser = (userKey: string) => {
-    const cleanKey = userKey.toLowerCase().trim();
-    const targetUser = usersList.find(
-      (u) =>
-        (u.username && u.username.toLowerCase() === cleanKey) ||
-        (u.email && u.email.toLowerCase() === cleanKey) ||
-        u.id === userKey ||
-        (cleanKey === 'admin_central' && (u.username === 'admin' || u.id === 'u1')) ||
-        (cleanKey === 'admin_fidalga' && (u.username === 'admin_fidalga' || u.id === 'u-fidalga')) ||
-        (cleanKey === 'admin_norte' && (u.username === 'admin_norte' || u.id === 'u-vencido')) ||
-        (cleanKey === 'admin_sur' && (u.username === 'admin_sur' || u.id === 'u-desactivado')) ||
-        (cleanKey === 'admin_andes' && (u.username === 'admin_andes' || u.id === 'u-pendiente')) ||
-        (cleanKey === 'cajero1' && (u.role === 'cajero' || u.username === 'cajero1' || u.id === 'u2')) ||
-        (cleanKey === 'superadmin' && u.role === 'superadmin')
-    );
-    if (targetUser) {
-      setIdentifier(targetUser.username || targetUser.email);
-      setLoginPassword(targetUser.password || (targetUser.role === 'superadmin' ? 'superadmin123' : targetUser.role === 'cajero' ? 'cajero123' : 'admin123'));
-      setErrorMessage('');
-      setSuccessNotice('');
-      setMode('login');
-    }
-  };
-
-  // Quick Login Demo legacy helper
-  const handleQuickLogin = (role: 'superadmin' | 'admin' | 'cajero') => {
-    const demoUser = usersList.find(
-      (u) => u.role === role && (u.status === 'activo' || !u.status)
-    );
-    if (demoUser) {
-      setIdentifier(demoUser.username || demoUser.email);
-      setLoginPassword(demoUser.password || (role === 'superadmin' ? 'superadmin123' : role === 'cajero' ? 'cajero123' : 'admin123'));
-      setErrorMessage('');
-      setSuccessNotice('');
-      setMode('login');
-    }
-  };
-
   // Validate Employee Registration Form
   const validateEmployeeRegistration = (): boolean => {
     const errors: Record<string, string> = {};
@@ -398,7 +359,7 @@ export const Login: React.FC<LoginProps> = ({
           </div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">SuperMercado Express</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Plataforma SaaS Multi-Supermercados — Módulo de Acceso
+            Plataforma SaaS Multi-Supermercados — Control de Acceso
           </p>
         </div>
 
@@ -566,82 +527,6 @@ export const Login: React.FC<LoginProps> = ({
                     <span>Regístralo aquí</span>
                     <ArrowRight className="w-3 h-3" />
                   </button>
-                </div>
-
-                {/* Quick Access Demo Accounts */}
-                <div className="mt-5 pt-4 border-t border-slate-100">
-                  <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider text-center mb-2">
-                    Accesos rápidos para pruebas SaaS:
-                  </p>
-                  <div className="grid grid-cols-3 gap-1.5 mb-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLogin('superadmin')}
-                      className="py-2 px-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[11px] font-bold flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer shadow-2xs"
-                      title="Super Administrador SaaS (Plataforma)"
-                    >
-                      <Crown className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Super Admin</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLoginUser('admin_central')}
-                      className="py-2 px-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-[11px] font-bold text-emerald-800 flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer"
-                      title="Admin SM Central (Activo)"
-                    >
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span>Admin Activo</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLogin('cajero')}
-                      className="py-2 px-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer"
-                      title="Cajero POS"
-                    >
-                      <UserIcon className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Cajero POS</span>
-                    </button>
-                  </div>
-
-                  {/* Secondary test cases for SaaS control */}
-                  <div className="grid grid-cols-4 gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLoginUser('admin_fidalga')}
-                      className="py-1.5 px-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg text-[10px] font-bold text-amber-900 flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                      title="Admin Fidalga Express (Próximo a Vencer ≤ 7 días)"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                      <span>Por Vencer</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLoginUser('admin_norte')}
-                      className="py-1.5 px-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg text-[10px] font-bold text-rose-800 flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                      title="Admin Hipermaxi Norte (Vencido)"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                      <span>Vencido</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLoginUser('admin_sur')}
-                      className="py-1.5 px-1 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg text-[10px] font-bold text-slate-700 flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                      title="Admin Mercado Sur (Desactivado)"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                      <span>Inactivo</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLoginUser('admin_andes')}
-                      className="py-1.5 px-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg text-[10px] font-bold text-blue-800 flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                      title="Admin Los Andes (Pendiente)"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                      <span>Pendiente</span>
-                    </button>
-                  </div>
                 </div>
               </form>
             )}

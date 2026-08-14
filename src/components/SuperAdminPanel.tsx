@@ -217,7 +217,7 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold">
               <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Plataforma SaaS Multi-Supermercados • Módulo 2: Control de Acceso</span>
+              <span>Plataforma SaaS Multi-Supermercados • Control de Acceso y Licencias</span>
             </div>
             <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight">
               Panel del Super Administrador

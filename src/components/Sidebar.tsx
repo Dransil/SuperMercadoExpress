@@ -108,7 +108,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* SUPER ADMIN SPECIFIC NAVIGATION */}
           {isSuperAdmin ? (
             <>
-              {/* Módulo 1 SaaS: Supermercados */}
+              {/* SaaS Supermercados */}
               <button
                 id="nav-supermercados-btn"
                 onClick={() => handleNavClick('supermercados')}
@@ -120,9 +120,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <Building2 className="w-4 h-4 shrink-0 text-indigo-400" />
                 <span className="flex-1 text-left">Supermercados</span>
-                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  Módulo 1
-                </span>
               </button>
             </>
           ) : (
@@ -144,7 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </span>
               </button>
 
-              {/* Módulo 6: Dashboard (Admin Only) */}
+              {/* Dashboard (Admin Only) */}
               {currentRole === 'admin' && (
                 <button
                   id="nav-dashboard-btn"
@@ -163,7 +160,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               )}
 
-              {/* Módulo 4: Ventas (Punto de Venta POS) */}
+              {/* Ventas (Punto de Venta POS) */}
               <button
                 id="nav-ventas-btn"
                 onClick={() => handleNavClick('ventas')}
@@ -194,7 +191,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="flex-1 text-left">Cierre de jornada</span>
               </button>
 
-              {/* Módulo 2: Productos */}
+              {/* Productos */}
               <button
                 id="nav-productos-btn"
                 onClick={() => handleNavClick('productos')}
@@ -208,7 +205,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span>Productos</span>
               </button>
 
-              {/* Módulo 3: Inventario */}
+              {/* Inventario */}
               <button
                 id="nav-inventario-btn"
                 onClick={() => handleNavClick('inventario')}
@@ -222,7 +219,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span>Inventario</span>
               </button>
 
-              {/* Módulo 5: Reportes (Solo Admin) */}
+              {/* Reportes (Solo Admin) */}
               {currentRole === 'admin' && (
                 <button
                   id="nav-reportes-btn"
@@ -278,7 +275,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                <span>{isSuperAdmin ? 'Módulo 1 SaaS Activo' : 'Sistema POS Activo'}</span>
+                <span>{isSuperAdmin ? 'Administración SaaS Activa' : 'Sistema POS Activo'}</span>
               </div>
               <p className="text-[11px] leading-relaxed text-slate-400">
                 {isSuperAdmin
