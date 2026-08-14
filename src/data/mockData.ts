@@ -65,7 +65,7 @@ export const INITIAL_USERS: (User & { password: string })[] = [
     username: 'superadmin',
     email: 'thecobra1783@gmail.com',
     password: 'taqcod789456.-.',
-    name: 'Super Administrador SaaS',
+    name: 'Emanuel Taquichiri',
     role: 'superadmin',
     documentId: '0000000000',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
