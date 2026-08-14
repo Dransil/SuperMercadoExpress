@@ -1,6 +1,24 @@
-import { useState, useEffect } from 'react';
-import { User, Employee, Product, InventoryMovement, MovementType, ToastMessage, Sale, ShiftClosure, UserRole } from './types';
-import { INITIAL_USERS, INITIAL_EMPLOYEES, INITIAL_PRODUCTS, INITIAL_INVENTORY_MOVEMENTS, INITIAL_SALES } from './data/mockData';
+import { useState, useEffect, useMemo } from 'react';
+import {
+  User,
+  Employee,
+  Product,
+  InventoryMovement,
+  MovementType,
+  ToastMessage,
+  Sale,
+  ShiftClosure,
+  UserRole,
+  Supermarket,
+} from './types';
+import {
+  INITIAL_USERS,
+  INITIAL_EMPLOYEES,
+  INITIAL_PRODUCTS,
+  INITIAL_INVENTORY_MOVEMENTS,
+  INITIAL_SALES,
+  INITIAL_SUPERMARKETS,
+} from './data/mockData';
 import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -13,8 +31,16 @@ import { SalesModule } from './components/SalesModule';
 import { ReportsModule } from './components/ReportsModule';
 import { StatsDashboard } from './components/StatsDashboard';
 import { ShiftClosureModule } from './components/ShiftClosureModule';
+import { SuperAdminPanel } from './components/SuperAdminPanel';
 import { UserProfileModal } from './components/UserProfileModal';
 import { SupabaseModal } from './components/SupabaseModal';
+import { AccessBlockedScreen } from './components/AccessBlockedScreen';
+import {
+  getTodayIsoString,
+  getSupermarketAccessInfo,
+  addMonthsToIso,
+  formatBolivianDate,
+} from './utils/saasAccess';
 import {
   fetchProductsFromSupabase,
   fetchUsersFromSupabase,
@@ -22,6 +48,7 @@ import {
   fetchSalesFromSupabase,
   fetchMovementsFromSupabase,
   fetchShiftClosuresFromSupabase,
+  fetchSupermarketsFromSupabase,
   ensureAdminInSupabase,
   saveProductToSupabase,
   deleteProductFromSupabase,
@@ -30,18 +57,21 @@ import {
   saveShiftClosureToSupabase,
   saveUserToSupabase,
   saveEmployeeToSupabase,
+  saveSupermarketToSupabase,
 } from './lib/supabase';
 import { CheckCircle2, AlertCircle, Info, ShieldAlert } from 'lucide-react';
 
 export default function App() {
   const [users, setUsers] = useState<(User & { password: string })[]>(INITIAL_USERS);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [supermarkets, setSupermarkets] = useState<Supermarket[]>(INITIAL_SUPERMARKETS);
   const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [movements, setMovements] = useState<InventoryMovement[]>(INITIAL_INVENTORY_MOVEMENTS);
   const [sales, setSales] = useState<Sale[]>(INITIAL_SALES);
   const [shiftClosures, setShiftClosures] = useState<ShiftClosure[]>([]);
   const [activeTab, setActiveTab] = useState<string>('inicio');
+  const [sessionKey, setSessionKey] = useState<number>(0);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
@@ -51,13 +81,14 @@ export default function App() {
   useEffect(() => {
     const loadSupabaseData = async () => {
       try {
-        // Ensure Admin user is saved in Supabase
+        // Ensure Admin and Super Admin users exist in Supabase
         await ensureAdminInSupabase();
 
-        // Fetch tables from Supabase
+        // Fetch tables from Supabase in parallel
         const [
           dbUsers,
           dbEmployees,
+          dbSupermarkets,
           dbProducts,
           dbSales,
           dbMovements,
@@ -65,6 +96,7 @@ export default function App() {
         ] = await Promise.all([
           fetchUsersFromSupabase(),
           fetchEmployeesFromSupabase(),
+          fetchSupermarketsFromSupabase(),
           fetchProductsFromSupabase(),
           fetchSalesFromSupabase(),
           fetchMovementsFromSupabase(),
@@ -72,10 +104,37 @@ export default function App() {
         ]);
 
         if (dbUsers && dbUsers.length > 0) {
-          setUsers(dbUsers);
+          const userMap = new Map<string, User & { password: string }>();
+          INITIAL_USERS.forEach((u) => userMap.set(u.id, u));
+          dbUsers.forEach((u) => {
+            const existing = userMap.get(u.id);
+            userMap.set(u.id, {
+              ...existing,
+              ...u,
+              password: u.password || existing?.password || 'admin123',
+            });
+          });
+          setUsers(Array.from(userMap.values()));
+        } else {
+          setUsers(INITIAL_USERS);
         }
+
         if (dbEmployees && dbEmployees.length > 0) {
-          setEmployees(dbEmployees);
+          const empMap = new Map<string, Employee>();
+          INITIAL_EMPLOYEES.forEach((e) => empMap.set(e.id, e));
+          dbEmployees.forEach((e) => empMap.set(e.id, { ...empMap.get(e.id), ...e }));
+          setEmployees(Array.from(empMap.values()));
+        } else {
+          setEmployees(INITIAL_EMPLOYEES);
+        }
+
+        if (dbSupermarkets && dbSupermarkets.length > 0) {
+          const smMap = new Map<string, Supermarket>();
+          INITIAL_SUPERMARKETS.forEach((s) => smMap.set(s.id, s));
+          dbSupermarkets.forEach((s) => smMap.set(s.id, { ...smMap.get(s.id), ...s }));
+          setSupermarkets(Array.from(smMap.values()));
+        } else {
+          setSupermarkets(INITIAL_SUPERMARKETS);
         }
         setProducts(dbProducts || []);
         setSales(dbSales || []);
@@ -91,6 +150,9 @@ export default function App() {
 
   // Sync state to Supabase bulk handler
   const handleSyncAllData = async () => {
+    for (const sm of supermarkets) {
+      await saveSupermarketToSupabase(sm);
+    }
     for (const prod of products) {
       await saveProductToSupabase(prod);
     }
@@ -112,18 +174,6 @@ export default function App() {
     addToast('Sincronización completa con Supabase realizada exitosamente.', 'success');
   };
 
-  // Shift Closure Save Handler
-  const handleSaveShiftClosure = (newClosure: ShiftClosure) => {
-    setShiftClosures((prev) => [
-      newClosure,
-      ...prev.filter(
-        (c) => !(c.cashierId === newClosure.cashierId && c.date === newClosure.date)
-      ),
-    ]);
-    saveShiftClosureToSupabase(newClosure);
-  };
-
-
   // Toast Helper
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -131,6 +181,50 @@ export default function App() {
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3500);
+  };
+
+  // ==========================================
+  // MULTI-TENANT ISOLATION: Scoped Collections
+  // ==========================================
+  const scopedProducts = useMemo(() => {
+    if (!currentUser || currentUser.role === 'superadmin') return products;
+    return products.filter((p) => p.supermarketId === currentUser.supermarketId);
+  }, [products, currentUser]);
+
+  const scopedMovements = useMemo(() => {
+    if (!currentUser || currentUser.role === 'superadmin') return movements;
+    return movements.filter((m) => m.supermarketId === currentUser.supermarketId);
+  }, [movements, currentUser]);
+
+  const scopedSales = useMemo(() => {
+    if (!currentUser || currentUser.role === 'superadmin') return sales;
+    return sales.filter((s) => s.supermarketId === currentUser.supermarketId);
+  }, [sales, currentUser]);
+
+  const scopedShiftClosures = useMemo(() => {
+    if (!currentUser || currentUser.role === 'superadmin') return shiftClosures;
+    return shiftClosures.filter((c) => c.supermarketId === currentUser.supermarketId);
+  }, [shiftClosures, currentUser]);
+
+  const scopedEmployees = useMemo(() => {
+    if (!currentUser || currentUser.role === 'superadmin') return employees;
+    return employees.filter((e) => e.supermarketId === currentUser.supermarketId);
+  }, [employees, currentUser]);
+
+  // Shift Closure Save Handler
+  const handleSaveShiftClosure = (newClosure: ShiftClosure) => {
+    const closureWithTenant: ShiftClosure = {
+      ...newClosure,
+      supermarketId: newClosure.supermarketId || currentUser?.supermarketId,
+      supermarketName: newClosure.supermarketName || currentUser?.supermarketName,
+    };
+    setShiftClosures((prev) => [
+      closureWithTenant,
+      ...prev.filter(
+        (c) => !(c.cashierId === closureWithTenant.cashierId && c.date === closureWithTenant.date)
+      ),
+    ]);
+    saveShiftClosureToSupabase(closureWithTenant);
   };
 
   // Change Password Handler
@@ -163,30 +257,380 @@ export default function App() {
   // Handle Login
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
-    setActiveTab('inicio');
-    addToast(`¡Bienvenido(a), ${user.name}! Sesión iniciada como ${user.role === 'admin' ? 'Administrador' : 'Cajero'}.`, 'success');
+    setIsProfileModalOpen(false);
+    setIsSupabaseModalOpen(false);
+    setIsMobileSidebarOpen(false);
+    setSessionKey((prev) => prev + 1);
+    if (user.role === 'superadmin') {
+      setActiveTab('supermercados');
+      addToast(`¡Bienvenido Super Administrador, ${user.name}! Panel central SaaS activado.`, 'success');
+    } else {
+      setActiveTab('inicio');
+      addToast(
+        `¡Bienvenido(a), ${user.name}! Sesión iniciada como ${
+          user.role === 'admin' ? 'Administrador' : 'Cajero'
+        }.`,
+        'success'
+      );
+    }
   };
 
-  // Handle Logout
+  // Handle Logout (Clean all temporary and transient states)
   const handleLogout = () => {
     setCurrentUser(null);
     setActiveTab('inicio');
+    setIsProfileModalOpen(false);
+    setIsSupabaseModalOpen(false);
+    setIsMobileSidebarOpen(false);
+    setSessionKey((prev) => prev + 1);
     addToast('Sesión cerrada correctamente.', 'info');
   };
 
-  // Employee CRUD Handlers
-  const handleAddEmployee = (newEmpData: Omit<Employee, 'id'>) => {
+  // ==========================================
+  // MÓDULO 1: SUPERMARKET SAAS HANDLERS
+  // ==========================================
+
+  // Register a new Supermarket + its Admin (Initial status: 'pendiente')
+  const handleRegisterSupermarket = (newSupermarket: Supermarket, adminPassword: string) => {
+    // 1. Add supermarket to state
+    setSupermarkets((prev) => [newSupermarket, ...prev]);
+    saveSupermarketToSupabase(newSupermarket);
+
+    // 2. Generate username from admin email
+    const username = newSupermarket.adminEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // 3. Create Admin User (status: 'pendiente')
+    const newAdminUser: User & { password: string } = {
+      id: newSupermarket.adminId,
+      username: username || `admin_${Date.now()}`,
+      email: newSupermarket.adminEmail,
+      name: newSupermarket.adminName,
+      role: 'admin',
+      avatar: newSupermarket.adminPhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      documentId: newSupermarket.adminDocumentId,
+      password: adminPassword,
+      status: 'pendiente',
+      phone: newSupermarket.adminPhone,
+      address: newSupermarket.adminAddress,
+      birthDate: newSupermarket.adminBirthDate,
+      hireDate: newSupermarket.adminHireDate,
+      cargo: 'Administrador General',
+      supermarketId: newSupermarket.id,
+      supermarketName: newSupermarket.name,
+    };
+
+    setUsers((prev) => [newAdminUser, ...prev]);
+    saveUserToSupabase(newAdminUser);
+
+    // 4. Create Employee record for the Admin (status: 'pendiente')
+    const newAdminEmployee: Employee = {
+      id: `emp-${newSupermarket.adminId}`,
+      fullName: newSupermarket.adminName,
+      documentId: newSupermarket.adminDocumentId,
+      phone: newSupermarket.adminPhone,
+      address: newSupermarket.adminAddress,
+      email: newSupermarket.adminEmail,
+      birthDate: newSupermarket.adminBirthDate,
+      hireDate: newSupermarket.adminHireDate,
+      cargo: 'Administrador General',
+      photo: newSupermarket.adminPhoto || newAdminUser.avatar,
+      role: 'admin',
+      status: 'pendiente',
+      supermarketId: newSupermarket.id,
+    };
+
+    setEmployees((prev) => [newAdminEmployee, ...prev]);
+    saveEmployeeToSupabase(newAdminEmployee);
+
+    addToast(
+      `Solicitud de registro enviada para "${newSupermarket.name}". Estado: Pendiente de revisión.`,
+      'info'
+    );
+  };
+
+  // Super Admin: Approve Supermarket and activate its Admin with authorized access period
+  const handleApproveSupermarket = (
+    supermarketId: string,
+    startDate?: string,
+    expirationDate?: string
+  ) => {
+    const targetSm = supermarkets.find((s) => s.id === supermarketId);
+    if (!targetSm) return;
+
+    const nowIso = new Date().toISOString();
+    const todayStr = getTodayIsoString();
+    const effectiveStart = startDate || targetSm.startDate || todayStr;
+    const effectiveExp = expirationDate || targetSm.expirationDate || addMonthsToIso(effectiveStart, 1);
+
+    // 1. Update Supermarket
+    const updatedSm: Supermarket = {
+      ...targetSm,
+      status: 'activo',
+      startDate: effectiveStart,
+      expirationDate: effectiveExp,
+      isManuallyDeactivated: false,
+      reviewedAt: nowIso,
+      lastAccessUpdate: nowIso,
+    };
+    setSupermarkets((prev) =>
+      prev.map((s) => (s.id === supermarketId ? updatedSm : s))
+    );
+    saveSupermarketToSupabase(updatedSm);
+
+    // 2. Activate Admin User
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === targetSm.adminId || u.supermarketId === supermarketId) {
+          const updatedUser = { ...u, status: 'activo' as const };
+          saveUserToSupabase(updatedUser);
+          return updatedUser;
+        }
+        return u;
+      })
+    );
+
+    // 3. Activate Admin Employee
+    setEmployees((prev) =>
+      prev.map((e) => {
+        if (e.supermarketId === supermarketId || e.id === `emp-${targetSm.adminId}`) {
+          const updatedEmp = { ...e, status: 'activo' as const };
+          saveEmployeeToSupabase(updatedEmp);
+          return updatedEmp;
+        }
+        return e;
+      })
+    );
+
+    addToast(
+      `¡Supermercado "${targetSm.name}" aprobado exitosamente! Período de acceso vigente hasta ${formatBolivianDate(effectiveExp)}.`,
+      'success'
+    );
+  };
+
+  // Super Admin: Save or Update Access Period for Supermarket
+  const handleSaveAccessPeriod = (
+    supermarketId: string,
+    startDate: string,
+    expirationDate: string,
+    notes?: string
+  ) => {
+    const targetSm = supermarkets.find((s) => s.id === supermarketId);
+    if (!targetSm) return;
+
+    const nowIso = new Date().toISOString();
+    const todayStr = getTodayIsoString();
+
+    // Determine status based on dates
+    let newStatus: Supermarket['status'] = 'activo';
+    if (todayStr < startDate) {
+      newStatus = 'pendiente';
+    } else if (todayStr > expirationDate) {
+      newStatus = 'vencido';
+    }
+
+    const updatedSm: Supermarket = {
+      ...targetSm,
+      startDate,
+      expirationDate,
+      notes: notes !== undefined ? notes : targetSm.notes,
+      status: newStatus,
+      isManuallyDeactivated: false,
+      deactivatedAt: undefined,
+      deactivationReason: undefined,
+      lastAccessUpdate: nowIso,
+    };
+
+    setSupermarkets((prev) =>
+      prev.map((s) => (s.id === supermarketId ? updatedSm : s))
+    );
+    saveSupermarketToSupabase(updatedSm);
+
+    // Reactivate Admin User and Employee if new period is active
+    if (newStatus === 'activo') {
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === targetSm.adminId || u.supermarketId === supermarketId) {
+            const updatedUser = { ...u, status: 'activo' as const };
+            saveUserToSupabase(updatedUser);
+            return updatedUser;
+          }
+          return u;
+        })
+      );
+      setEmployees((prev) =>
+        prev.map((e) => {
+          if (e.supermarketId === supermarketId || e.id === `emp-${targetSm.adminId}`) {
+            const updatedEmp = { ...e, status: 'activo' as const };
+            saveEmployeeToSupabase(updatedEmp);
+            return updatedEmp;
+          }
+          return e;
+        })
+      );
+    }
+
+    addToast(
+      `Período de acceso para "${targetSm.name}" actualizado del ${formatBolivianDate(startDate)} al ${formatBolivianDate(expirationDate)}.`,
+      'success'
+    );
+  };
+
+  // Super Admin: Deactivate Supermarket Manually
+  const handleDeactivateSupermarket = (supermarketId: string, reason?: string) => {
+    const targetSm = supermarkets.find((s) => s.id === supermarketId);
+    if (!targetSm) return;
+
+    const nowIso = new Date().toISOString();
+
+    const updatedSm: Supermarket = {
+      ...targetSm,
+      status: 'desactivado',
+      isManuallyDeactivated: true,
+      deactivatedAt: nowIso,
+      deactivationReason: reason || 'Acceso desactivado manualmente por el Super Administrador.',
+      lastAccessUpdate: nowIso,
+    };
+
+    setSupermarkets((prev) =>
+      prev.map((s) => (s.id === supermarketId ? updatedSm : s))
+    );
+    saveSupermarketToSupabase(updatedSm);
+
+    addToast(
+      `El acceso al supermercado "${targetSm.name}" ha sido desactivado.`,
+      'info'
+    );
+  };
+
+  // Super Admin: Reject Supermarket
+  const handleRejectSupermarket = (supermarketId: string, reason?: string) => {
+    const targetSm = supermarkets.find((s) => s.id === supermarketId);
+    if (!targetSm) return;
+
+    const nowIso = new Date().toISOString();
+
+    // 1. Update Supermarket
+    const updatedSm: Supermarket = {
+      ...targetSm,
+      status: 'rechazado',
+      reviewedAt: nowIso,
+      rejectionReason: reason || 'No cumple con las directrices de la plataforma.',
+    };
+    setSupermarkets((prev) =>
+      prev.map((s) => (s.id === supermarketId ? updatedSm : s))
+    );
+    saveSupermarketToSupabase(updatedSm);
+
+    // 2. Reject Admin User
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === targetSm.adminId || u.supermarketId === supermarketId) {
+          const updatedUser = { ...u, status: 'rechazado' as const };
+          saveUserToSupabase(updatedUser);
+          return updatedUser;
+        }
+        return u;
+      })
+    );
+
+    // 3. Reject Admin Employee
+    setEmployees((prev) =>
+      prev.map((e) => {
+        if (e.supermarketId === supermarketId || e.id === `emp-${targetSm.adminId}`) {
+          const updatedEmp = { ...e, status: 'rechazado' as const };
+          saveEmployeeToSupabase(updatedEmp);
+          return updatedEmp;
+        }
+        return e;
+      })
+    );
+
+    addToast(
+      `La solicitud de registro del supermercado "${targetSm.name}" ha sido rechazada.`,
+      'info'
+    );
+  };
+
+  // ==========================================
+  // EMPLOYEE / USER CRUD HANDLERS
+  // ==========================================
+
+  const handleAddEmployee = (
+    newEmpData: Omit<Employee, 'id'>,
+    accessAccount?: { username: string; password: string; createAccount: boolean }
+  ) => {
+    // 1. Mandatory association strictly from currentUser session (Authenticated Admin)
+    const enforcedSupermarketId = currentUser?.supermarketId || newEmpData.supermarketId;
+    const enforcedSupermarketName = currentUser?.supermarketName || newEmpData.supermarketName;
+
+    const newEmpId = `emp-${String(employees.length + 1).padStart(3, '0')}`;
+    const cleanEmail = newEmpData.email.trim().toLowerCase();
+
     const newEmployee: Employee = {
       ...newEmpData,
-      id: `emp-${String(employees.length + 1).padStart(3, '0')}`,
+      id: newEmpId,
+      email: cleanEmail,
+      supermarketId: enforcedSupermarketId,
+      supermarketName: enforcedSupermarketName,
+      status: 'activo',
+      registrationDate: new Date().toISOString().split('T')[0],
     };
+
+    // 2. If access account creation is requested
+    if (accessAccount?.createAccount) {
+      const defaultUsername =
+        accessAccount.username?.trim() ||
+        cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') ||
+        `user_${Date.now()}`;
+      const newUserId = `u-${newEmpId}`;
+
+      const newUser: User & { password: string } = {
+        id: newUserId,
+        username: defaultUsername,
+        email: cleanEmail,
+        name: newEmpData.fullName,
+        role: newEmpData.role,
+        avatar: newEmpData.photo,
+        documentId: newEmpData.documentId,
+        password: accessAccount.password?.trim() || 'cajero123',
+        status: 'activo',
+        phone: newEmpData.phone,
+        address: newEmpData.address,
+        birthDate: newEmpData.birthDate,
+        hireDate: newEmpData.hireDate,
+        cargo: newEmpData.cargo,
+        employeeId: newEmpId,
+        supermarketId: enforcedSupermarketId, // MANDATORY: strictly from authenticated admin
+        supermarketName: enforcedSupermarketName, // MANDATORY: strictly from authenticated admin
+        createdAt: new Date().toISOString(),
+      };
+
+      newEmployee.userId = newUserId;
+
+      setUsers((prev) => {
+        const filtered = prev.filter(
+          (u) => u.id !== newUserId && u.email.toLowerCase() !== cleanEmail
+        );
+        return [newUser, ...filtered];
+      });
+      saveUserToSupabase(newUser);
+    }
+
     setEmployees((prev) => [newEmployee, ...prev]);
     saveEmployeeToSupabase(newEmployee);
-    addToast(`Empleado "${newEmployee.fullName}" registrado exitosamente.`, 'success');
+    addToast(
+      `Empleado "${newEmployee.fullName}" registrado exitosamente en ${enforcedSupermarketName || 'el supermercado'}.`,
+      'success'
+    );
   };
 
   const handleUpdateEmployee = (id: string, updatedData: Omit<Employee, 'id'>) => {
-    const updatedEmp = { ...updatedData, id };
+    const updatedEmp: Employee = {
+      ...updatedData,
+      id,
+      supermarketId: updatedData.supermarketId || currentUser?.supermarketId,
+      supermarketName: updatedData.supermarketName || currentUser?.supermarketName,
+    };
     setEmployees((prev) =>
       prev.map((emp) => (emp.id === id ? updatedEmp : emp))
     );
@@ -205,16 +649,23 @@ export default function App() {
     const newProduct: Product = {
       ...newProdData,
       id: `prod-${String(products.length + 1).padStart(3, '0')}`,
+      supermarketId: newProdData.supermarketId || currentUser?.supermarketId,
+      supermarketName: newProdData.supermarketName || currentUser?.supermarketName,
     };
     setProducts((prev) => [newProduct, ...prev]);
     saveProductToSupabase(newProduct);
   };
 
   const handleUpdateProduct = (updatedProduct: Product) => {
+    const productWithTenant: Product = {
+      ...updatedProduct,
+      supermarketId: updatedProduct.supermarketId || currentUser?.supermarketId,
+      supermarketName: updatedProduct.supermarketName || currentUser?.supermarketName,
+    };
     setProducts((prev) =>
-      prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
+      prev.map((p) => (p.id === productWithTenant.id ? productWithTenant : p))
     );
-    saveProductToSupabase(updatedProduct);
+    saveProductToSupabase(productWithTenant);
   };
 
   const handleDeleteProduct = (id: string) => {
@@ -237,7 +688,12 @@ export default function App() {
     const previousStock = targetProduct.stock;
 
     // Update product stock
-    const updatedProd = { ...targetProduct, stock: newStock };
+    const updatedProd: Product = {
+      ...targetProduct,
+      stock: newStock,
+      supermarketId: targetProduct.supermarketId || currentUser?.supermarketId,
+      supermarketName: targetProduct.supermarketName || currentUser?.supermarketName,
+    };
     setProducts((prev) =>
       prev.map((p) => (p.id === productId ? updatedProd : p))
     );
@@ -259,136 +715,153 @@ export default function App() {
       productCode: targetProduct.code,
       productName: targetProduct.name,
       productImage: targetProduct.image,
-      movementType,
+      movementType: movementType,
       quantity,
       previousStock,
       newStock,
-      reason,
       date: formattedDate,
-      userId: currentUser?.id || 'usr-anon',
-      userName: currentUser?.name || 'Usuario',
+      reason,
+      userId: currentUser?.id || 'admin',
+      userName: currentUser?.name || 'Administrador',
+      supermarketId: targetProduct.supermarketId || currentUser?.supermarketId,
+      supermarketName: targetProduct.supermarketName || currentUser?.supermarketName,
     };
 
     setMovements((prev) => [newMovement, ...prev]);
     saveMovementToSupabase(newMovement);
-
-    addToast(
-      `Movimiento de ${movementType === 'entrada' ? 'entrada' : 'ajuste'} registrado para "${
-        targetProduct.name
-      }". Nueva existencia: ${newStock}`,
-      'success'
-    );
+    addToast(`Movimiento registrado: ${movementType.toUpperCase()} (${quantity} u.)`, 'success');
   };
 
-  // Sales Handler (Módulo 4: Ventas)
+  // Sales Complete Handler (Módulo 4: Ventas)
   const handleCompleteSale = (completedSale: Sale) => {
-    // Stock sufficiency verification guard
-    for (const item of completedSale.items) {
-      const prod = products.find((p) => p.id === item.productId);
-      if (!prod || prod.stock < item.quantity) {
-        addToast(
-          `Venta cancelada: El producto "${item.name}" no tiene suficiente stock disponible (Disponible: ${prod ? prod.stock : 0}, Solicitado: ${item.quantity}).`,
-          'error'
+    const saleWithTenant: Sale = {
+      ...completedSale,
+      supermarketId: completedSale.supermarketId || currentUser?.supermarketId,
+      supermarketName: completedSale.supermarketName || currentUser?.supermarketName,
+    };
+
+    // 1. Save sale
+    setSales((prev) => [saleWithTenant, ...prev]);
+    saveSaleToSupabase(saleWithTenant);
+
+    // 2. Reduce products stock and register inventory movements
+    saleWithTenant.items.forEach((item) => {
+      const targetProduct = products.find((p) => p.id === item.productId);
+      if (targetProduct) {
+        const previousStock = targetProduct.stock;
+        const newStock = Math.max(0, previousStock - item.quantity);
+
+        // Update product stock
+        const updatedProd: Product = {
+          ...targetProduct,
+          stock: newStock,
+          supermarketId: targetProduct.supermarketId || currentUser?.supermarketId,
+          supermarketName: targetProduct.supermarketName || currentUser?.supermarketName,
+        };
+        setProducts((prev) =>
+          prev.map((p) => (p.id === item.productId ? updatedProd : p))
         );
-        return;
+        saveProductToSupabase(updatedProd);
+
+        // Register movement
+        const now = new Date();
+        const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+          2,
+          '0'
+        )}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(
+          2,
+          '0'
+        )}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        const saleMovement: InventoryMovement = {
+          id: `mov-${Date.now()}-${item.productId}`,
+          productId: targetProduct.id,
+          productCode: targetProduct.code,
+          productName: targetProduct.name,
+          productImage: targetProduct.image,
+          movementType: 'salida',
+          quantity: item.quantity,
+          previousStock,
+          newStock,
+          date: formattedDate,
+          reason: `Venta POS #${saleWithTenant.id}`,
+          userId: saleWithTenant.cashierId,
+          userName: saleWithTenant.cashierName,
+          supermarketId: saleWithTenant.supermarketId || targetProduct.supermarketId || currentUser?.supermarketId,
+          supermarketName: saleWithTenant.supermarketName || targetProduct.supermarketName || currentUser?.supermarketName,
+        };
+
+        setMovements((prev) => [saleMovement, ...prev]);
+        saveMovementToSupabase(saleMovement);
       }
-    }
-
-    // 1. Deduct stock from products
-    setProducts((prevProducts) =>
-      prevProducts.map((p) => {
-        const itemSold = completedSale.items.find((it) => it.productId === p.id);
-        if (itemSold) {
-          const updatedStock = Math.max(0, p.stock - itemSold.quantity);
-          const updatedProd = { ...p, stock: updatedStock };
-          saveProductToSupabase(updatedProd);
-          return updatedProd;
-        }
-        return p;
-      })
-    );
-
-    // 2. Automatically log inventory movements for each sold item
-    const newMovements: InventoryMovement[] = completedSale.items.map((item, idx) => {
-      const targetProd = products.find((p) => p.id === item.productId);
-      const prevStock = targetProd ? targetProd.stock : item.stockAvailable;
-      const newStock = Math.max(0, prevStock - item.quantity);
-
-      const mov: InventoryMovement = {
-        id: `mov-vta-${completedSale.id}-${idx + 1}`,
-        productId: item.productId,
-        productCode: item.code,
-        productName: item.name,
-        productImage: item.image,
-        movementType: 'ajuste' as MovementType,
-        quantity: -item.quantity,
-        previousStock: prevStock,
-        newStock: newStock,
-        reason: `Salida automática por Venta N° ${completedSale.id}`,
-        date: completedSale.date,
-        userId: completedSale.cashierId,
-        userName: completedSale.cashierName,
-      };
-      saveMovementToSupabase(mov);
-      return mov;
     });
 
-    setMovements((prev) => [...newMovements, ...prev]);
-
-    // 3. Save sale
-    setSales((prev) => [completedSale, ...prev]);
-    saveSaleToSupabase(completedSale);
+    addToast(`Venta #${saleWithTenant.id} registrada con éxito.`, 'success');
   };
 
-  // User Registration Handler (from Login page)
-  const handleRegisterUser = (regData: {
-    fullName: string;
-    documentId: string;
-    phone: string;
-    address: string;
-    email: string;
-    birthDate: string;
-    hireDate: string;
-    cargo: string;
-    photo: string;
-    password: string;
-  }): { success: boolean; message: string } => {
-    // Check if email already exists
-    const existingUser = users.find((u) => u.email.toLowerCase() === regData.email.toLowerCase());
-    if (existingUser) {
-      return { success: false, message: 'El correo electrónico ya se encuentra registrado.' };
+  // Self-registration of an Employee
+  const handleRegisterUser = (
+    data: Omit<Employee, 'id' | 'role' | 'status'> & { password: string }
+  ): { success: boolean; message: string } => {
+    const cleanEmail = data.email.trim().toLowerCase();
+    const cleanDoc = data.documentId.trim();
+
+    const isDuplicate =
+      users.some(
+        (u) => u.email.toLowerCase() === cleanEmail || u.documentId === cleanDoc
+      ) ||
+      employees.some(
+        (e) => e.email.toLowerCase() === cleanEmail || e.documentId === cleanDoc
+      );
+
+    if (isDuplicate) {
+      return {
+        success: false,
+        message: 'El correo electrónico o documento de identidad ya se encuentra registrado.',
+      };
     }
 
-    const newEmpId = `emp-${String(employees.length + 1).padStart(3, '0')}`;
-    const newUserId = `usr-${String(users.length + 1).padStart(3, '0')}`;
+    const newEmpId = `emp-${Date.now()}`;
+    const newUserId = `u-${Date.now()}`;
 
     const newEmployee: Employee = {
       id: newEmpId,
-      fullName: regData.fullName,
-      documentId: regData.documentId,
-      phone: regData.phone,
-      address: regData.address,
-      email: regData.email,
-      birthDate: regData.birthDate,
-      hireDate: regData.hireDate || new Date().toISOString().split('T')[0],
+      fullName: data.fullName,
+      documentId: data.documentId,
+      phone: data.phone,
+      address: data.address,
+      email: cleanEmail,
+      birthDate: data.birthDate,
+      hireDate: data.hireDate,
+      cargo: data.cargo,
+      photo: data.photo,
       role: 'cajero',
-      cargo: regData.cargo || 'Cajero',
-      photo: regData.photo,
       status: 'pendiente',
+      supermarketId: data.supermarketId,
+      supermarketName: data.supermarketName,
       registrationDate: new Date().toISOString().split('T')[0],
     };
 
+    const username = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+
     const newUser: User & { password: string } = {
       id: newUserId,
-      username: regData.email.split('@')[0],
-      name: regData.fullName,
-      email: regData.email,
-      documentId: regData.documentId,
+      username: username || `user_${Date.now()}`,
+      email: cleanEmail,
+      name: data.fullName,
       role: 'cajero',
-      avatar: regData.photo,
-      employeeId: newEmpId,
-      password: regData.password,
+      avatar: data.photo,
+      documentId: data.documentId,
+      password: data.password,
       status: 'pendiente',
+      phone: data.phone,
+      address: data.address,
+      birthDate: data.birthDate,
+      hireDate: data.hireDate,
+      cargo: data.cargo,
+      employeeId: newEmpId,
+      supermarketId: data.supermarketId,
+      supermarketName: data.supermarketName,
     };
 
     setEmployees((prev) => [newEmployee, ...prev]);
@@ -397,11 +870,9 @@ export default function App() {
     saveEmployeeToSupabase(newEmployee);
     saveUserToSupabase(newUser);
 
-    addToast('Solicitud de registro enviada. Un Administrador debe autorizar su acceso.', 'info');
-
     return {
       success: true,
-      message: 'Registro completado. Su cuenta está en estado "Pendiente de Autorización". El Administrador debe aprobarla antes de poder iniciar sesión.',
+      message: 'Solicitud de registro enviada con éxito.',
     };
   };
 
@@ -412,9 +883,8 @@ export default function App() {
     if (targetEmp) {
       const updatedEmp: Employee = {
         ...targetEmp,
-        status: 'activo',
         role: assignedRole,
-        cargo: targetEmp.cargo || (assignedRole === 'admin' ? 'Administrador' : 'Cajero'),
+        status: 'activo',
       };
       setEmployees((prev) =>
         prev.map((emp) => (emp.id === employeeId ? updatedEmp : emp))
@@ -425,11 +895,14 @@ export default function App() {
     // 2. Update linked User
     setUsers((prev) =>
       prev.map((u) => {
-        if (u.employeeId === employeeId || (targetEmp && u.email.toLowerCase() === targetEmp.email.toLowerCase())) {
+        if (
+          u.employeeId === employeeId ||
+          (targetEmp && u.email.toLowerCase() === targetEmp.email.toLowerCase())
+        ) {
           const updatedUser = {
             ...u,
-            status: 'activo' as const,
             role: assignedRole,
+            status: 'activo' as const,
           };
           saveUserToSupabase(updatedUser);
           return updatedUser;
@@ -461,7 +934,10 @@ export default function App() {
     // 2. Update linked User
     setUsers((prev) =>
       prev.map((u) => {
-        if (u.employeeId === employeeId || (targetEmp && u.email.toLowerCase() === targetEmp.email.toLowerCase())) {
+        if (
+          u.employeeId === employeeId ||
+          (targetEmp && u.email.toLowerCase() === targetEmp.email.toLowerCase())
+        ) {
           const updatedUser = { ...u, status: 'rechazado' as const };
           saveUserToSupabase(updatedUser);
           return updatedUser;
@@ -470,7 +946,10 @@ export default function App() {
       })
     );
 
-    addToast(`La solicitud de registro de "${targetEmp?.fullName || 'solicitante'}" ha sido rechazada.`, 'info');
+    addToast(
+      `La solicitud de registro de "${targetEmp?.fullName || 'solicitante'}" ha sido rechazada.`,
+      'info'
+    );
   };
 
   // Render Login screen if no active session
@@ -480,7 +959,10 @@ export default function App() {
         <Login
           onLoginSuccess={handleLoginSuccess}
           users={users}
+          employees={employees}
+          supermarkets={supermarkets}
           onRegisterUser={handleRegisterUser}
+          onRegisterSupermarket={handleRegisterSupermarket}
         />
 
         {/* Global Toast Notifications */}
@@ -507,8 +989,62 @@ export default function App() {
     );
   }
 
+  // SaaS Access Check for non-superadmin users
+  const userSupermarket =
+    currentUser.role !== 'superadmin' && currentUser.supermarketId
+      ? supermarkets.find((s) => s.id === currentUser.supermarketId)
+      : null;
+
+  const accessInfo = userSupermarket
+    ? getSupermarketAccessInfo(userSupermarket)
+    : null;
+
+  // Block access if supermarket is expired, deactivated, rejected or pending
+  if (
+    currentUser.role !== 'superadmin' &&
+    accessInfo &&
+    (accessInfo.effectiveStatus === 'vencido' ||
+      accessInfo.effectiveStatus === 'desactivado' ||
+      accessInfo.effectiveStatus === 'rechazado' ||
+      accessInfo.effectiveStatus === 'pendiente')
+  ) {
+    return (
+      <div className="font-sans antialiased text-slate-900 bg-slate-50 min-h-screen flex items-center justify-center p-4">
+        <AccessBlockedScreen
+          status={accessInfo.effectiveStatus}
+          supermarketName={userSupermarket?.name || currentUser.supermarketName}
+          onLogout={handleLogout}
+          customMessage={accessInfo.blockMessage}
+        />
+        {/* Global Toast Notifications */}
+        <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm pointer-events-none">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`p-3.5 rounded-xl shadow-lg border flex items-center gap-3 text-sm animate-fadeIn pointer-events-auto ${
+                toast.type === 'success'
+                  ? 'bg-white text-slate-800 border-emerald-200 font-medium'
+                  : toast.type === 'error'
+                  ? 'bg-white text-slate-800 border-rose-200 font-medium'
+                  : 'bg-white text-slate-800 border-slate-200 font-medium'
+              }`}
+            >
+              {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />}
+              {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />}
+              {toast.type === 'info' && <Info className="w-5 h-5 text-blue-600 shrink-0" />}
+              <span>{toast.message}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // Active Screen Title Mapping
   const getScreenTitle = () => {
+    if (currentUser.role === 'superadmin') {
+      return 'Supermercados — Panel de Control SaaS';
+    }
     if (activeTab === 'inicio') {
       return currentUser.role === 'admin' ? 'Inicio — Administrador' : 'Inicio — Cajero';
     }
@@ -543,6 +1079,7 @@ export default function App() {
         currentRole={currentUser.role}
         userName={currentUser.name}
         userAvatar={currentUser.avatar}
+        supermarketName={userSupermarket?.name || currentUser.supermarketName}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onLogout={handleLogout}
@@ -559,25 +1096,54 @@ export default function App() {
           userName={currentUser.name}
           userRole={currentUser.role}
           userAvatar={currentUser.avatar}
+          supermarketName={userSupermarket?.name || currentUser.supermarketName}
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
           onLogout={handleLogout}
           onOpenProfile={() => setIsProfileModalOpen(true)}
           onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         />
 
+        {/* Expiring Soon Banner for Supermarket Admins/Cashiers */}
+        {currentUser.role !== 'superadmin' && accessInfo?.isExpiringSoon && (
+          <div className="bg-amber-500 text-slate-950 px-4 lg:px-8 py-2.5 flex items-center justify-between gap-3 text-xs font-semibold shadow-xs border-b border-amber-600">
+            <div className="flex items-center gap-2 max-w-4xl">
+              <AlertCircle className="w-4 h-4 text-slate-950 shrink-0" />
+              <span>
+                <strong>Aviso de suscripción:</strong> El período de acceso autorizado para &ldquo;{userSupermarket?.name}&rdquo; vencerá en {accessInfo.daysRemaining} {accessInfo.daysRemaining === 1 ? 'día' : 'días'} (el {formatBolivianDate(userSupermarket?.expirationDate)}). Contacte al Super Administrador para renovar su período.
+              </span>
+            </div>
+            <span className="hidden sm:inline-block px-2 py-0.5 bg-slate-900 text-amber-300 rounded text-[10px] uppercase font-bold tracking-wider shrink-0">
+              Próximo a vencer
+            </span>
+          </div>
+        )}
+
         {/* Page Body View Router */}
         <main className="flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
-          {/* Active Tab Logic */}
-          {activeTab === 'inicio' && currentUser.role === 'admin' && (
+          {/* SUPER ADMIN ROUTE */}
+          {currentUser.role === 'superadmin' && (
+            <SuperAdminPanel
+              supermarkets={supermarkets}
+              onApproveSupermarket={handleApproveSupermarket}
+              onRejectSupermarket={handleRejectSupermarket}
+              onSaveAccessPeriod={handleSaveAccessPeriod}
+              onDeactivateSupermarket={handleDeactivateSupermarket}
+              showToast={addToast}
+              referenceDate={getTodayIsoString()}
+            />
+          )}
+
+          {/* SUPERMARKET STANDARD ROUTES */}
+          {currentUser.role !== 'superadmin' && activeTab === 'inicio' && currentUser.role === 'admin' && (
             <AdminDashboard
               currentUser={currentUser}
-              employees={employees}
+              employees={scopedEmployees}
               onNavigateToEmployees={() => setActiveTab('empleados')}
               onNavigateToDashboard={() => setActiveTab('dashboard')}
             />
           )}
 
-          {activeTab === 'inicio' && currentUser.role === 'cajero' && (
+          {currentUser.role !== 'superadmin' && activeTab === 'inicio' && currentUser.role === 'cajero' && (
             <CashierDashboard
               currentUser={currentUser}
               onNavigateToSales={() => setActiveTab('ventas')}
@@ -586,31 +1152,33 @@ export default function App() {
           )}
 
           {/* Cierre de Jornada (Cajero) */}
-          {activeTab === 'cierre' && (
+          {currentUser.role !== 'superadmin' && activeTab === 'cierre' && (
             <ShiftClosureModule
               currentUser={currentUser}
-              sales={sales}
-              shiftClosures={shiftClosures}
+              sales={scopedSales}
+              shiftClosures={scopedShiftClosures}
               onSaveShiftClosure={handleSaveShiftClosure}
               showToast={addToast}
             />
           )}
 
           {/* Módulo 4: Ventas (Punto de Venta POS) */}
-          {activeTab === 'ventas' && (
+          {currentUser.role !== 'superadmin' && activeTab === 'ventas' && (
             <SalesModule
-              products={products}
+              key={`sales-${currentUser.id}-${sessionKey}`}
+              products={scopedProducts}
               currentUser={currentUser}
               onCompleteSale={handleCompleteSale}
               showToast={addToast}
-              recentSales={sales}
+              recentSales={scopedSales}
             />
           )}
 
           {/* Módulo 2: Productos */}
-          {activeTab === 'productos' && (
+          {currentUser.role !== 'superadmin' && activeTab === 'productos' && (
             <ProductManagement
-              products={products}
+              key={`prod-${currentUser.id}-${sessionKey}`}
+              products={scopedProducts}
               currentUser={currentUser}
               onAddProduct={handleAddProduct}
               onUpdateProduct={handleUpdateProduct}
@@ -620,10 +1188,11 @@ export default function App() {
           )}
 
           {/* Módulo 3: Inventario */}
-          {activeTab === 'inventario' && (
+          {currentUser.role !== 'superadmin' && activeTab === 'inventario' && (
             <InventoryManagement
-              products={products}
-              movements={movements}
+              key={`inv-${currentUser.id}-${sessionKey}`}
+              products={scopedProducts}
+              movements={scopedMovements}
               currentUser={currentUser}
               onAddMovement={handleAddMovement}
               showToast={addToast}
@@ -631,15 +1200,16 @@ export default function App() {
           )}
 
           {/* Módulo 5: Reportes (Solo Administrador) */}
-          {activeTab === 'reportes' && currentUser.role === 'admin' && (
+          {currentUser.role !== 'superadmin' && activeTab === 'reportes' && currentUser.role === 'admin' && (
             <ReportsModule
-              sales={sales}
+              key={`rep-${currentUser.id}-${sessionKey}`}
+              sales={scopedSales}
               currentUser={currentUser}
               showToast={addToast}
             />
           )}
 
-          {activeTab === 'reportes' && currentUser.role !== 'admin' && (
+          {currentUser.role !== 'superadmin' && activeTab === 'reportes' && currentUser.role !== 'admin' && (
             <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center max-w-md mx-auto my-12 space-y-4 shadow-sm">
               <div className="p-3 bg-amber-50 text-amber-600 rounded-full w-12 h-12 mx-auto flex items-center justify-center border border-amber-200">
                 <ShieldAlert className="w-6 h-6" />
@@ -652,16 +1222,17 @@ export default function App() {
           )}
 
           {/* Módulo 6: Panel de Estadísticas (Dashboard - Solo Admin) */}
-          {activeTab === 'dashboard' && currentUser.role === 'admin' && (
+          {currentUser.role !== 'superadmin' && activeTab === 'dashboard' && currentUser.role === 'admin' && (
             <StatsDashboard
-              sales={sales}
-              products={products}
+              key={`dash-${currentUser.id}-${sessionKey}`}
+              sales={scopedSales}
+              products={scopedProducts}
               currentUser={currentUser}
-              employees={employees}
+              employees={scopedEmployees}
             />
           )}
 
-          {activeTab === 'dashboard' && currentUser.role !== 'admin' && (
+          {currentUser.role !== 'superadmin' && activeTab === 'dashboard' && currentUser.role !== 'admin' && (
             <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center max-w-md mx-auto my-12 space-y-4 shadow-sm">
               <div className="p-3 bg-amber-50 text-amber-600 rounded-full w-12 h-12 mx-auto flex items-center justify-center border border-amber-200">
                 <ShieldAlert className="w-6 h-6" />
@@ -673,19 +1244,22 @@ export default function App() {
             </div>
           )}
 
-          {activeTab === 'empleados' && currentUser.role === 'admin' && (
+          {currentUser.role !== 'superadmin' && activeTab === 'empleados' && currentUser.role === 'admin' && (
             <EmployeeManagement
-              employees={employees}
+              key={`emp-${currentUser.id}-${sessionKey}`}
+              employees={scopedEmployees}
               onAddEmployee={handleAddEmployee}
               onUpdateEmployee={handleUpdateEmployee}
               onDeleteEmployee={handleDeleteEmployee}
               onAuthorizeUser={handleAuthorizeUser}
               onRejectUser={handleRejectUser}
+              currentSupermarketName={currentUser.supermarketName}
+              currentSupermarketId={currentUser.supermarketId}
             />
           )}
 
           {/* Fallback if Cashier attempts to open Admin route */}
-          {activeTab === 'empleados' && currentUser.role !== 'admin' && (
+          {currentUser.role !== 'superadmin' && activeTab === 'empleados' && currentUser.role !== 'admin' && (
             <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center max-w-md mx-auto my-12 space-y-4 shadow-sm">
               <div className="p-3 bg-amber-50 text-amber-600 rounded-full w-12 h-12 mx-auto flex items-center justify-center border border-amber-200">
                 <ShieldAlert className="w-6 h-6" />
@@ -743,4 +1317,3 @@ export default function App() {
     </div>
   );
 }
-

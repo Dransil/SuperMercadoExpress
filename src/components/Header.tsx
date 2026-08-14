@@ -1,12 +1,13 @@
 import React from 'react';
 import { UserRole } from '../types';
-import { Menu, LogOut, ShieldCheck, UserCheck, Database } from 'lucide-react';
+import { Menu, LogOut, ShieldCheck, UserCheck, Database, Crown } from 'lucide-react';
 
 interface HeaderProps {
   title: string;
   userName: string;
   userRole: UserRole;
   userAvatar: string;
+  supermarketName?: string;
   onOpenMobileSidebar: () => void;
   onLogout: () => void;
   onOpenProfile: () => void;
@@ -18,6 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   userName,
   userRole,
   userAvatar,
+  supermarketName,
   onOpenMobileSidebar,
   onLogout,
   onOpenProfile,
@@ -37,7 +39,11 @@ export const Header: React.FC<HeaderProps> = ({
         <div>
           <h1 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h1>
           <p className="text-xs text-slate-500 hidden sm:block">
-            SuperMercado Express — Sistema de Ventas
+            {userRole === 'superadmin'
+              ? 'SuperMercado SaaS — Plataforma de Administración Central'
+              : supermarketName
+              ? `${supermarketName} — Sistema POS`
+              : 'SuperMercado Express — Sistema de Ventas POS'}
           </p>
         </div>
       </div>
@@ -68,12 +74,19 @@ export const Header: React.FC<HeaderProps> = ({
           <img
             src={userAvatar}
             alt={userName}
-            className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-500/30 shrink-0"
+            className={`w-8 h-8 rounded-full object-cover ring-2 shrink-0 ${
+              userRole === 'superadmin' ? 'ring-indigo-500/40' : 'ring-emerald-500/30'
+            }`}
           />
           <div className="text-left hidden sm:block">
             <p className="text-xs font-semibold text-slate-800 leading-tight">{userName}</p>
             <div className="flex items-center gap-1 text-[10px]">
-              {userRole === 'admin' ? (
+              {userRole === 'superadmin' ? (
+                <>
+                  <Crown className="w-3 h-3 text-amber-500" />
+                  <span className="text-indigo-700 font-bold uppercase tracking-wider">Super Admin</span>
+                </>
+              ) : userRole === 'admin' ? (
                 <>
                   <ShieldCheck className="w-3 h-3 text-blue-600" />
                   <span className="text-blue-700 font-bold uppercase tracking-wider">Administrador</span>
@@ -100,4 +113,3 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
-

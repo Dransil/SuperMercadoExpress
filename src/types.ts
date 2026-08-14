@@ -1,5 +1,37 @@
-export type UserRole = 'admin' | 'cajero';
+export type UserRole = 'superadmin' | 'admin' | 'cajero';
 export type UserStatus = 'activo' | 'inactivo' | 'pendiente' | 'rechazado';
+
+export type SupermarketStatus = 'pendiente' | 'activo' | 'vencido' | 'desactivado' | 'rechazado';
+
+export interface Supermarket {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  status: SupermarketStatus;
+  registrationDate: string;
+  // SaaS Access Period & Control
+  startDate?: string; // Formato YYYY-MM-DD
+  expirationDate?: string; // Formato YYYY-MM-DD
+  isManuallyDeactivated?: boolean;
+  deactivatedAt?: string;
+  deactivationReason?: string;
+  lastAccessUpdate?: string;
+  // Administrator associated exclusively to this supermarket
+  adminId?: string;
+  adminName: string;
+  adminEmail: string;
+  adminDocumentId: string;
+  adminPhone: string;
+  adminAddress: string;
+  adminBirthDate: string;
+  adminHireDate: string;
+  adminPhoto: string;
+  reviewedAt?: string;
+  notes?: string;
+  rejectionReason?: string;
+}
 
 export interface User {
   id: string;
@@ -10,6 +42,8 @@ export interface User {
   avatar: string;
   documentId: string;
   employeeId?: string;
+  supermarketId?: string;
+  supermarketName?: string;
   password?: string;
   status?: UserStatus;
   phone?: string;
@@ -32,6 +66,8 @@ export interface Employee {
   role: UserRole;
   photo: string;
   status: UserStatus;
+  supermarketId?: string;
+  supermarketName?: string;
   cargo?: string;
   registrationDate?: string;
   userId?: string;
@@ -52,9 +88,11 @@ export interface Product {
   status: ProductStatus; // Estado (Activo / Inactivo)
   image: string; // Imagen del producto
   stock: number; // Existencia actual en inventario
+  supermarketId?: string; // Multi-tenant supermarket association
+  supermarketName?: string;
 }
 
-export type MovementType = 'entrada' | 'ajuste';
+export type MovementType = 'entrada' | 'ajuste' | 'salida';
 
 export type InventoryStatus = 'disponible' | 'stock_bajo' | 'sin_stock';
 
@@ -72,6 +110,8 @@ export interface InventoryMovement {
   date: string; // Fecha y hora del movimiento
   userId: string; // ID del usuario que realizó el movimiento
   userName: string; // Nombre del usuario
+  supermarketId?: string; // Multi-tenant supermarket association
+  supermarketName?: string;
 }
 
 export interface ToastMessage {
@@ -105,6 +145,8 @@ export interface Sale {
   paymentMethod: PaymentMethod;
   amountTendered?: number; // Para efectivo
   changeGiven?: number; // Para efectivo
+  supermarketId?: string; // Multi-tenant supermarket association
+  supermarketName?: string;
 }
 
 export type ClosureStatus = 'coincidencia' | 'faltante' | 'sobrante';
@@ -124,4 +166,6 @@ export interface ShiftClosure {
   difference: number;
   status: ClosureStatus;
   closedAt: string;
+  supermarketId?: string; // Multi-tenant supermarket association
+  supermarketName?: string;
 }

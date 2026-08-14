@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { User, Employee, Product, InventoryMovement, Sale, ShiftClosure } from '../types';
-import { INITIAL_USERS, INITIAL_EMPLOYEES } from '../data/mockData';
+import { User, Employee, Product, InventoryMovement, Sale, ShiftClosure, Supermarket } from '../types';
+import { INITIAL_USERS, INITIAL_EMPLOYEES, INITIAL_SUPERMARKETS } from '../data/mockData';
 
 // Supabase Project Credentials provided by user
 export const SUPABASE_URL =
@@ -33,7 +33,7 @@ export async function checkSupabaseConnection(): Promise<{ connected: boolean; e
 /**
  * SQL Script generator for Supabase SQL Editor
  */
-export const SUPABASE_SQL_SCHEMA = `-- ESQUEMA DE BASE DE DATOS SUPABASE PARA SUPERMERCADO POS
+export const SUPABASE_SQL_SCHEMA = `-- ESQUEMA DE BASE DE DATOS SUPABASE PARA SUPERMERCADO POS (SaaS)
 
 -- 1. Tabla de Usuarios
 CREATE TABLE IF NOT EXISTS public.users (
@@ -45,6 +45,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   avatar TEXT,
   document_id TEXT,
   employee_id TEXT,
+  supermarket_id TEXT,
+  supermarket_name TEXT,
   password TEXT,
   status TEXT DEFAULT 'activo',
   phone TEXT,
@@ -68,6 +70,8 @@ CREATE TABLE IF NOT EXISTS public.employees (
   role TEXT NOT NULL DEFAULT 'cajero',
   photo TEXT,
   status TEXT DEFAULT 'activo',
+  supermarket_id TEXT,
+  supermarket_name TEXT,
   cargo TEXT,
   registration_date TEXT,
   user_id TEXT,
@@ -88,6 +92,8 @@ CREATE TABLE IF NOT EXISTS public.products (
   status TEXT DEFAULT 'activo',
   image TEXT,
   stock NUMERIC(10,2) DEFAULT 0,
+  supermarket_id TEXT,
+  supermarket_name TEXT,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -106,6 +112,8 @@ CREATE TABLE IF NOT EXISTS public.inventory_movements (
   date TEXT NOT NULL,
   user_id TEXT,
   user_name TEXT,
+  supermarket_id TEXT,
+  supermarket_name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -122,6 +130,8 @@ CREATE TABLE IF NOT EXISTS public.sales (
   payment_method TEXT NOT NULL,
   amount_tendered NUMERIC(10,2),
   change_given NUMERIC(10,2),
+  supermarket_id TEXT,
+  supermarket_name TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -141,6 +151,37 @@ CREATE TABLE IF NOT EXISTS public.shift_closures (
   difference NUMERIC(10,2) DEFAULT 0,
   status TEXT NOT NULL,
   closed_at TEXT NOT NULL,
+  supermarket_id TEXT,
+  supermarket_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 7. Tabla de Supermercados (SaaS Multi-Supermercado)
+CREATE TABLE IF NOT EXISTS public.supermarkets (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  address TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  email TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pendiente',
+  registration_date TEXT NOT NULL,
+  start_date TEXT,
+  expiration_date TEXT,
+  is_manually_deactivated BOOLEAN DEFAULT FALSE,
+  deactivated_at TEXT,
+  deactivation_reason TEXT,
+  last_access_update TEXT,
+  admin_id TEXT,
+  admin_name TEXT,
+  admin_email TEXT,
+  admin_document_id TEXT,
+  admin_phone TEXT,
+  admin_address TEXT,
+  admin_birth_date TEXT,
+  admin_hire_date TEXT,
+  admin_photo TEXT,
+  reviewed_at TEXT,
+  notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -151,7 +192,45 @@ ALTER TABLE public.products DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_movements DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.shift_closures DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.supermarkets DISABLE ROW LEVEL SECURITY;
 `;
+
+// Fetchers from Supabase
+
+export async function fetchSupermarketsFromSupabase(): Promise<Supermarket[]> {
+  try {
+    const { data, error } = await supabase.from('supermarkets').select('*').order('created_at', { ascending: false });
+    if (error || !data || data.length === 0) return [];
+    return data.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      address: item.address,
+      phone: item.phone,
+      email: item.email,
+      status: item.status || 'pendiente',
+      registrationDate: item.registration_date,
+      startDate: item.start_date || undefined,
+      expirationDate: item.expiration_date || undefined,
+      isManuallyDeactivated: item.is_manually_deactivated || false,
+      deactivatedAt: item.deactivated_at || undefined,
+      deactivationReason: item.deactivation_reason || undefined,
+      lastAccessUpdate: item.last_access_update || undefined,
+      adminId: item.admin_id,
+      adminName: item.admin_name,
+      adminEmail: item.admin_email,
+      adminDocumentId: item.admin_document_id,
+      adminPhone: item.admin_phone,
+      adminAddress: item.admin_address,
+      adminBirthDate: item.admin_birth_date || '',
+      adminHireDate: item.admin_hire_date || '',
+      adminPhoto: item.admin_photo || '',
+      reviewedAt: item.reviewed_at,
+      notes: item.notes,
+    }));
+  } catch {
+    return [];
+  }
+}
 
 // Fetchers from Supabase
 
@@ -172,6 +251,8 @@ export async function fetchProductsFromSupabase(): Promise<Product[]> {
       status: item.status || 'activo',
       image: item.image || '',
       stock: Number(item.stock) || 0,
+      supermarketId: item.supermarket_id || undefined,
+      supermarketName: item.supermarket_name || undefined,
     }));
   } catch {
     return [];
@@ -192,6 +273,8 @@ export async function fetchUsersFromSupabase(): Promise<(User & { password: stri
       avatar: item.avatar || '',
       documentId: item.document_id || '',
       employeeId: item.employee_id || '',
+      supermarketId: item.supermarket_id || undefined,
+      supermarketName: item.supermarket_name || undefined,
       status: item.status || 'activo',
       phone: item.phone || '',
       address: item.address || '',
@@ -221,6 +304,8 @@ export async function fetchEmployeesFromSupabase(): Promise<Employee[]> {
       role: item.role || 'cajero',
       photo: item.photo || '',
       status: item.status || 'activo',
+      supermarketId: item.supermarket_id || undefined,
+      supermarketName: item.supermarket_name || undefined,
       cargo: item.cargo || '',
       registrationDate: item.registration_date || '',
       userId: item.user_id || '',
@@ -246,6 +331,8 @@ export async function fetchSalesFromSupabase(): Promise<Sale[]> {
       paymentMethod: item.payment_method,
       amountTendered: item.amount_tendered ? Number(item.amount_tendered) : undefined,
       changeGiven: item.change_given ? Number(item.change_given) : undefined,
+      supermarketId: item.supermarket_id || undefined,
+      supermarketName: item.supermarket_name || undefined,
     }));
   } catch {
     return [];
@@ -270,6 +357,8 @@ export async function fetchMovementsFromSupabase(): Promise<InventoryMovement[]>
       date: item.date,
       userId: item.user_id || '',
       userName: item.user_name || '',
+      supermarketId: item.supermarket_id || undefined,
+      supermarketName: item.supermarket_name || undefined,
     }));
   } catch {
     return [];
@@ -295,6 +384,8 @@ export async function fetchShiftClosuresFromSupabase(): Promise<ShiftClosure[]> 
       difference: Number(item.difference) || 0,
       status: item.status,
       closedAt: item.closed_at,
+      supermarketId: item.supermarket_id || undefined,
+      supermarketName: item.supermarket_name || undefined,
     }));
   } catch {
     return [];
@@ -318,6 +409,8 @@ export async function saveProductToSupabase(product: Product): Promise<void> {
       status: product.status,
       image: product.image,
       stock: product.stock,
+      supermarket_id: product.supermarketId,
+      supermarket_name: product.supermarketName,
       updated_at: new Date().toISOString(),
     });
   } catch (e) {
@@ -347,6 +440,8 @@ export async function saveSaleToSupabase(sale: Sale): Promise<void> {
       payment_method: sale.paymentMethod,
       amount_tendered: sale.amountTendered,
       change_given: sale.changeGiven,
+      supermarket_id: sale.supermarketId,
+      supermarket_name: sale.supermarketName,
     });
   } catch (e) {
     console.warn('Error saving sale to Supabase:', e);
@@ -369,6 +464,8 @@ export async function saveMovementToSupabase(movement: InventoryMovement): Promi
       date: movement.date,
       user_id: movement.userId,
       user_name: movement.userName,
+      supermarket_id: movement.supermarketId,
+      supermarket_name: movement.supermarketName,
     });
   } catch (e) {
     console.warn('Error saving movement to Supabase:', e);
@@ -392,6 +489,8 @@ export async function saveShiftClosureToSupabase(closure: ShiftClosure): Promise
       difference: closure.difference,
       status: closure.status,
       closed_at: closure.closedAt,
+      supermarket_id: closure.supermarketId,
+      supermarket_name: closure.supermarketName,
     });
   } catch (e) {
     console.warn('Error saving shift closure to Supabase:', e);
@@ -409,6 +508,8 @@ export async function saveUserToSupabase(user: User & { password?: string }): Pr
       avatar: user.avatar,
       document_id: user.documentId,
       employee_id: user.employeeId,
+      supermarket_id: user.supermarketId,
+      supermarket_name: user.supermarketName,
       password: user.password || 'admin123',
       status: user.status,
       phone: user.phone,
@@ -436,6 +537,8 @@ export async function saveEmployeeToSupabase(employee: Employee): Promise<void> 
       role: employee.role,
       photo: employee.photo,
       status: employee.status,
+      supermarket_id: employee.supermarketId,
+      supermarket_name: employee.supermarketName,
       cargo: employee.cargo,
       registration_date: employee.registrationDate,
       user_id: employee.userId,
@@ -445,12 +548,50 @@ export async function saveEmployeeToSupabase(employee: Employee): Promise<void> 
   }
 }
 
+export async function saveSupermarketToSupabase(supermarket: Supermarket): Promise<void> {
+  try {
+    await supabase.from('supermarkets').upsert({
+      id: supermarket.id,
+      name: supermarket.name,
+      address: supermarket.address,
+      phone: supermarket.phone,
+      email: supermarket.email,
+      status: supermarket.status,
+      registration_date: supermarket.registrationDate,
+      start_date: supermarket.startDate || null,
+      expiration_date: supermarket.expirationDate || null,
+      is_manually_deactivated: supermarket.isManuallyDeactivated || false,
+      deactivated_at: supermarket.deactivatedAt || null,
+      deactivation_reason: supermarket.deactivationReason || null,
+      last_access_update: supermarket.lastAccessUpdate || null,
+      admin_id: supermarket.adminId,
+      admin_name: supermarket.adminName,
+      admin_email: supermarket.adminEmail,
+      admin_document_id: supermarket.adminDocumentId,
+      admin_phone: supermarket.adminPhone,
+      admin_address: supermarket.adminAddress,
+      admin_birth_date: supermarket.adminBirthDate,
+      admin_hire_date: supermarket.adminHireDate,
+      admin_photo: supermarket.adminPhoto,
+      reviewed_at: supermarket.reviewedAt,
+      notes: supermarket.notes,
+    });
+  } catch (e) {
+    console.warn('Error syncing supermarket to Supabase:', e);
+  }
+}
+
 /**
- * Ensures the default Administrator exists in Supabase
+ * Ensures the default Super Admin, Admin and initial Supermarket exist in Supabase
  */
 export async function ensureAdminInSupabase(): Promise<void> {
-  const adminUser = INITIAL_USERS[0];
-  const adminEmployee = INITIAL_EMPLOYEES[0];
-  if (adminUser) await saveUserToSupabase(adminUser);
-  if (adminEmployee) await saveEmployeeToSupabase(adminEmployee);
+  for (const user of INITIAL_USERS) {
+    await saveUserToSupabase(user);
+  }
+  for (const emp of INITIAL_EMPLOYEES) {
+    await saveEmployeeToSupabase(emp);
+  }
+  for (const sm of INITIAL_SUPERMARKETS) {
+    await saveSupermarketToSupabase(sm);
+  }
 }

@@ -24,15 +24,21 @@ import {
   XCircle,
   ShieldCheck,
   UserCheck,
+  Building2,
 } from 'lucide-react';
 
 interface EmployeeManagementProps {
   employees: Employee[];
-  onAddEmployee: (employee: Omit<Employee, 'id'>) => void;
+  onAddEmployee: (
+    employee: Omit<Employee, 'id'>,
+    accessAccount?: { username: string; password: string; createAccount: boolean }
+  ) => void;
   onUpdateEmployee: (id: string, updated: Omit<Employee, 'id'>) => void;
   onDeleteEmployee: (id: string) => void;
   onAuthorizeUser?: (id: string, role: UserRole) => void;
   onRejectUser?: (id: string) => void;
+  currentSupermarketName?: string;
+  currentSupermarketId?: string;
 }
 
 export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
@@ -42,6 +48,8 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   onDeleteEmployee,
   onAuthorizeUser,
   onRejectUser,
+  currentSupermarketName,
+  currentSupermarketId,
 }) => {
   // Main Tab State: 'activos' | 'pendientes' | 'rechazados'
   const [activeStatusTab, setActiveStatusTab] = useState<'activos' | 'pendientes' | 'rechazados'>('activos');
@@ -73,6 +81,11 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   const [status, setStatus] = useState<UserStatus>('activo');
   const [cargo, setCargo] = useState('');
 
+  // Access Account generation states
+  const [createAccessAccount, setCreateAccessAccount] = useState<boolean>(true);
+  const [accountUsername, setAccountUsername] = useState<string>('');
+  const [accountPassword, setAccountPassword] = useState<string>('cajero123');
+
   // Form Validation & Error state
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -95,6 +108,9 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     setCargo('Cajero');
     setPhoto(AVATAR_PRESETS[Math.floor(Math.random() * AVATAR_PRESETS.length)]);
     setStatus('activo');
+    setCreateAccessAccount(true);
+    setAccountUsername('');
+    setAccountPassword('cajero123');
     setFormErrors({});
     setIsFormModalOpen(true);
   };
@@ -113,6 +129,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     setCargo(emp.cargo || (emp.role === 'admin' ? 'Administrador' : 'Cajero'));
     setPhoto(emp.photo);
     setStatus(emp.status);
+    setCreateAccessAccount(false);
     setFormErrors({});
     setIsFormModalOpen(true);
   };
@@ -179,7 +196,11 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     if (editingEmployee) {
       onUpdateEmployee(editingEmployee.id, employeeData);
     } else {
-      onAddEmployee(employeeData);
+      onAddEmployee(employeeData, {
+        username: accountUsername.trim() || email.trim().toLowerCase().split('@')[0],
+        password: accountPassword.trim() || 'cajero123',
+        createAccount: createAccessAccount,
+      });
     }
 
     setIsFormModalOpen(false);
@@ -420,22 +441,30 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
                       {/* Cargo / Role */}
                       <td className="py-3.5 px-4">
-                        <div>
+                        <div className="space-y-1">
                           <p className="font-semibold text-slate-800 text-xs">
                             {emp.cargo || (emp.role === 'admin' ? 'Administrador' : 'Cajero')}
                           </p>
-                          {empStatus === 'activo' && (
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold capitalize mt-0.5 border ${
-                                emp.role === 'admin'
-                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              }`}
-                            >
-                              <Briefcase className="w-2.5 h-2.5" />
-                              Rol: {emp.role === 'admin' ? 'Administrador' : 'Cajero'}
-                            </span>
-                          )}
+                          <div className="flex flex-wrap items-center gap-1">
+                            {emp.supermarketName && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                <Building2 className="w-2.5 h-2.5 text-indigo-600" />
+                                {emp.supermarketName}
+                              </span>
+                            )}
+                            {empStatus === 'activo' && (
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold capitalize border ${
+                                  emp.role === 'admin'
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                }`}
+                              >
+                                <Briefcase className="w-2.5 h-2.5" />
+                                Rol: {emp.role === 'admin' ? 'Administrador' : 'Cajero'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
 
@@ -727,6 +756,26 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
             {/* Modal Form */}
             <form onSubmit={handleSaveEmployee} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+              {/* Supermercado Fijado por la Sesión (Solo Lectura) */}
+              {currentSupermarketName && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between shadow-xs">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-emerald-100 text-emerald-700 rounded-lg">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
+                        Supermercado Asignado
+                      </span>
+                      <span className="text-sm font-bold text-emerald-950">{currentSupermarketName}</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full border border-emerald-300">
+                    Asociación Obligatoria
+                  </span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Nombre Completo */}
                 <div className="sm:col-span-2">
@@ -991,6 +1040,68 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Opción de Crear Cuenta de Acceso al Sistema */}
+                {!editingEmployee && (
+                  <div className="sm:col-span-2 p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={createAccessAccount}
+                        onChange={(e) => setCreateAccessAccount(e.target.checked)}
+                        className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                      />
+                      <span className="text-sm font-bold text-slate-800">
+                        Crear cuenta de acceso al sistema
+                      </span>
+                    </label>
+
+                    {createAccessAccount && (
+                      <div className="pt-2.5 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs animate-fadeIn">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Usuario / Alias de Acceso
+                          </label>
+                          <input
+                            type="text"
+                            value={accountUsername}
+                            onChange={(e) => setAccountUsername(e.target.value)}
+                            placeholder={email ? email.split('@')[0] : 'Ej: laura_cajera'}
+                            className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+                          />
+                          <span className="text-[10px] text-slate-400">
+                            Si se omite, se generará a partir del correo.
+                          </span>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                            Contraseña Inicial *
+                          </label>
+                          <input
+                            type="text"
+                            value={accountPassword}
+                            onChange={(e) => setAccountPassword(e.target.value)}
+                            placeholder="cajero123"
+                            className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 font-mono focus:outline-none focus:border-emerald-500"
+                          />
+                          <span className="text-[10px] text-slate-400">
+                            Contraseña predeterminada para ingresar.
+                          </span>
+                        </div>
+
+                        <div className="sm:col-span-2 text-[11px] text-emerald-800 bg-emerald-50/80 p-2.5 rounded-lg border border-emerald-200 flex items-center gap-2">
+                          <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600" />
+                          <span>
+                            La cuenta heredará obligatoriamente el supermercado{' '}
+                            <strong>{currentSupermarketName || 'actual'}</strong> (ID:{' '}
+                            <code className="font-mono">{currentSupermarketId || 'sesión'}</code>) con el rol seleccionado.
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Form Action Buttons */}
@@ -1052,6 +1163,15 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
             {/* Profile Details Grid */}
             <div className="p-6 space-y-3 text-sm">
+              {viewingEmployee.supermarketName && (
+                <div className="flex items-center justify-between py-2 border-b border-slate-100 bg-indigo-50/50 -mx-6 px-6">
+                  <span className="text-indigo-900 font-medium flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-indigo-600" /> Supermercado Asignado:
+                  </span>
+                  <span className="font-bold text-indigo-950">{viewingEmployee.supermarketName}</span>
+                </div>
+              )}
+
               <div className="flex items-center justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium flex items-center gap-2">
                   <Briefcase className="w-4 h-4 text-slate-400" /> Cargo:
