@@ -1,5 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Supermarket, User } from '../types';
+import {
+  checkUsernameAvailability,
+  checkEmailAvailability,
+  checkSupermarketAvailability,
+} from '../utils/validation';
 import {
   Building2,
   ShieldCheck,
@@ -17,12 +22,17 @@ import {
   Clock,
   ArrowLeft,
   Sparkles,
+  KeyRound,
 } from 'lucide-react';
 
 interface SupermarketRegisterFormProps {
   existingUsers: User[];
   existingSupermarkets: Supermarket[];
-  onRegisterSupermarket: (newSupermarket: Supermarket, adminPassword: string) => void;
+  onRegisterSupermarket: (
+    newSupermarket: Supermarket,
+    adminPassword: string,
+    adminUsername?: string
+  ) => void;
   onBackToLogin: () => void;
 }
 
@@ -40,6 +50,7 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
 
   // Admin Fields
   const [adminFullName, setAdminFullName] = useState('');
+  const [adminUsername, setAdminUsername] = useState('');
   const [adminDocumentId, setAdminDocumentId] = useState('');
   const [adminPhone, setAdminPhone] = useState('');
   const [adminAddress, setAdminAddress] = useState('');
@@ -58,9 +69,29 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
   const [isSubmittedSuccess, setIsSubmittedSuccess] = useState(false);
   const [registeredSmName, setRegisteredSmName] = useState('');
 
-  // Email format validator
-  const isValidEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  // Real-time uniqueness validation
+  const usernameCheck = useMemo(() => {
+    if (!adminUsername.trim()) return null;
+    return checkUsernameAvailability(adminUsername, existingUsers);
+  }, [adminUsername, existingUsers]);
+
+  const adminEmailCheck = useMemo(() => {
+    if (!adminEmail.trim()) return null;
+    return checkEmailAvailability(adminEmail, existingUsers);
+  }, [adminEmail, existingUsers]);
+
+  const smValidation = useMemo(() => {
+    return checkSupermarketAvailability(supermarketName, supermarketEmail, existingSupermarkets);
+  }, [supermarketName, supermarketEmail, existingSupermarkets]);
+
+  // Auto-generate username from email if not filled
+  const handleAdminEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setAdminEmail(val);
+    if (!adminUsername && val.includes('@')) {
+      const suggested = val.split('@')[0].toLowerCase().replace(/[^a-z0-9_.-]/g, '');
+      setAdminUsername(suggested);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -80,25 +111,31 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
       setErrorMessage('El teléfono del supermercado es obligatorio.');
       return;
     }
-    if (!supermarketEmail.trim() || !isValidEmail(supermarketEmail)) {
-      setErrorMessage('Ingresa un correo electrónico válido para el supermercado.');
+    if (!supermarketEmail.trim()) {
+      setErrorMessage('Ingresa un correo electrónico para el supermercado.');
       return;
     }
 
-    // Check duplicate supermarket
-    const isSmDuplicate = existingSupermarkets.some(
-      (s) =>
-        s.name.toLowerCase().trim() === supermarketName.toLowerCase().trim() ||
-        s.email.toLowerCase().trim() === supermarketEmail.toLowerCase().trim()
-    );
-    if (isSmDuplicate) {
-      setErrorMessage('Ya existe un supermercado registrado con ese nombre o correo.');
+    if (!smValidation.nameAvailable.available && supermarketName.trim()) {
+      setErrorMessage(smValidation.nameAvailable.message);
+      return;
+    }
+    if (!smValidation.emailAvailable.available && supermarketEmail.trim()) {
+      setErrorMessage(smValidation.emailAvailable.message);
       return;
     }
 
     // Validations: Admin
     if (!adminFullName.trim()) {
       setErrorMessage('El nombre completo del Administrador es obligatorio.');
+      return;
+    }
+    if (!adminUsername.trim()) {
+      setErrorMessage('El nombre de usuario del Administrador es obligatorio.');
+      return;
+    }
+    if (usernameCheck && !usernameCheck.available) {
+      setErrorMessage(usernameCheck.message);
       return;
     }
     if (!adminDocumentId.trim()) {
@@ -113,8 +150,12 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
       setErrorMessage('La dirección del Administrador es obligatoria.');
       return;
     }
-    if (!adminEmail.trim() || !isValidEmail(adminEmail)) {
+    if (!adminEmail.trim()) {
       setErrorMessage('Ingresa un correo electrónico válido para el Administrador.');
+      return;
+    }
+    if (adminEmailCheck && !adminEmailCheck.available) {
+      setErrorMessage(adminEmailCheck.message);
       return;
     }
     if (!adminBirthDate) {
@@ -126,15 +167,13 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
       return;
     }
 
-    // Check duplicate admin email or doc
-    const isUserDuplicate = existingUsers.some(
-      (u) =>
-        u.email.toLowerCase().trim() === adminEmail.toLowerCase().trim() ||
-        u.documentId.trim() === adminDocumentId.trim()
+    // Check duplicate admin doc
+    const isDocDuplicate = existingUsers.some(
+      (u) => u.documentId.trim() === adminDocumentId.trim()
     );
-    if (isUserDuplicate) {
+    if (isDocDuplicate) {
       setErrorMessage(
-        'El correo o documento de identidad del Administrador ya se encuentra registrado en el sistema.'
+        'El documento de identidad del Administrador ya se encuentra registrado en el sistema.'
       );
       return;
     }
@@ -171,7 +210,7 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
       adminPhoto: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
     };
 
-    onRegisterSupermarket(newSupermarket, adminPassword);
+    onRegisterSupermarket(newSupermarket, adminPassword, adminUsername.trim().toLowerCase());
     setRegisteredSmName(supermarketName.trim());
     setIsSubmittedSuccess(true);
   };
@@ -266,9 +305,27 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Nombre del supermercado */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Nombre del Supermercado <span className="text-rose-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Nombre del Supermercado <span className="text-rose-500">*</span>
+                </label>
+                {supermarketName.trim() && (
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
+                      smValidation.nameAvailable.available
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'bg-rose-50 text-rose-700'
+                    }`}
+                  >
+                    {smValidation.nameAvailable.available ? (
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    ) : (
+                      <AlertCircle className="w-3 h-3 text-rose-600" />
+                    )}
+                    {smValidation.nameAvailable.available ? 'Disponible' : 'Ya registrado'}
+                  </span>
+                )}
+              </div>
               <div className="relative">
                 <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -277,16 +334,38 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
                   placeholder="Ej: Supermercado El Ahorro"
                   value={supermarketName}
                   onChange={(e) => setSupermarketName(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  className={`w-full pl-9 pr-3 py-2 bg-slate-50 border rounded-xl text-xs focus:outline-none focus:ring-2 ${
+                    supermarketName.trim() && !smValidation.nameAvailable.available
+                      ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500'
+                      : 'border-slate-200 focus:ring-indigo-500/20 focus:border-indigo-500'
+                  }`}
                 />
               </div>
             </div>
 
             {/* Correo del supermercado */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Correo Electrónico Comercial <span className="text-rose-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Correo Electrónico Comercial <span className="text-rose-500">*</span>
+                </label>
+                {supermarketEmail.trim() && (
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
+                      smValidation.emailAvailable.available
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'bg-rose-50 text-rose-700'
+                    }`}
+                  >
+                    {smValidation.emailAvailable.available ? (
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    ) : (
+                      <AlertCircle className="w-3 h-3 text-rose-600" />
+                    )}
+                    {smValidation.emailAvailable.available ? 'Disponible' : 'Ya en uso'}
+                  </span>
+                )}
+              </div>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -295,7 +374,11 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
                   placeholder="contacto@supermercado.com"
                   value={supermarketEmail}
                   onChange={(e) => setSupermarketEmail(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  className={`w-full pl-9 pr-3 py-2 bg-slate-50 border rounded-xl text-xs focus:outline-none focus:ring-2 ${
+                    supermarketEmail.trim() && !smValidation.emailAvailable.available
+                      ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500'
+                      : 'border-slate-200 focus:ring-indigo-500/20 focus:border-indigo-500'
+                  }`}
                 />
               </div>
             </div>
@@ -378,6 +461,49 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
               </div>
             </div>
 
+            {/* Nombre de Usuario */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Nombre de Usuario (Login) <span className="text-rose-500">*</span>
+                </label>
+                {usernameCheck && (
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
+                      usernameCheck.available
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'bg-rose-50 text-rose-700'
+                    }`}
+                  >
+                    {usernameCheck.available ? (
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    ) : (
+                      <AlertCircle className="w-3 h-3 text-rose-600" />
+                    )}
+                    {usernameCheck.available ? 'Disponible' : 'Ya en uso'}
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: mrojas"
+                  value={adminUsername}
+                  onChange={(e) => setAdminUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                  className={`w-full pl-9 pr-3 py-2 bg-slate-50 border rounded-xl text-xs focus:outline-none focus:ring-2 ${
+                    usernameCheck && !usernameCheck.available
+                      ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500'
+                      : 'border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500'
+                  }`}
+                />
+              </div>
+              {usernameCheck && !usernameCheck.available && (
+                <p className="text-[10px] text-rose-600 mt-1 font-semibold">{usernameCheck.message}</p>
+              )}
+            </div>
+
             {/* Documento de Identidad */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -398,9 +524,27 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
 
             {/* Correo Electrónico del Admin */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Correo Electrónico Personal (Usuario de Login) <span className="text-rose-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Correo Electrónico Personal <span className="text-rose-500">*</span>
+                </label>
+                {adminEmailCheck && (
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
+                      adminEmailCheck.available
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'bg-rose-50 text-rose-700'
+                    }`}
+                  >
+                    {adminEmailCheck.available ? (
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    ) : (
+                      <AlertCircle className="w-3 h-3 text-rose-600" />
+                    )}
+                    {adminEmailCheck.available ? 'Disponible' : 'Ya en uso'}
+                  </span>
+                )}
+              </div>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -408,10 +552,17 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
                   required
                   placeholder="admin@personal.com"
                   value={adminEmail}
-                  onChange={(e) => setAdminEmail(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  onChange={handleAdminEmailChange}
+                  className={`w-full pl-9 pr-3 py-2 bg-slate-50 border rounded-xl text-xs focus:outline-none focus:ring-2 ${
+                    adminEmailCheck && !adminEmailCheck.available
+                      ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500'
+                      : 'border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500'
+                  }`}
                 />
               </div>
+              {adminEmailCheck && !adminEmailCheck.available && (
+                <p className="text-[10px] text-rose-600 mt-1 font-semibold">{adminEmailCheck.message}</p>
+              )}
             </div>
 
             {/* Teléfono del Admin */}

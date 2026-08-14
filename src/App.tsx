@@ -249,9 +249,85 @@ export default function App() {
     setUsers((prevUsers) =>
       prevUsers.map((u) => (u.id === currentUser.id ? { ...u, password: newPassword } : u))
     );
+    saveUserToSupabase(updatedUser);
 
     addToast('Contraseña actualizada exitosamente.', 'success');
     return { success: true, message: 'Contraseña actualizada exitosamente.' };
+  };
+
+  // User Profile Update Handler
+  const handleUpdateProfile = (
+    updatedData: User
+  ): { success: boolean; message: string } => {
+    if (!currentUser) {
+      return { success: false, message: 'No hay ninguna sesión activa.' };
+    }
+
+    const updatedUser: User = {
+      ...currentUser,
+      ...updatedData,
+    };
+
+    // 1. Update currentUser in state
+    setCurrentUser(updatedUser);
+
+    // 2. Update users list and Supabase
+    setUsers((prevUsers) =>
+      prevUsers.map((u) => (u.id === updatedUser.id ? { ...u, ...updatedUser } : u))
+    );
+    saveUserToSupabase(updatedUser);
+
+    // 3. Update corresponding Employee record if exists
+    setEmployees((prevEmployees) =>
+      prevEmployees.map((e) => {
+        if (
+          e.id === updatedUser.employeeId ||
+          e.id === `emp-${updatedUser.id}` ||
+          (updatedUser.email && e.email.toLowerCase() === updatedUser.email.toLowerCase())
+        ) {
+          const updatedEmp: Employee = {
+            ...e,
+            fullName: updatedUser.name,
+            phone: updatedUser.phone || e.phone,
+            address: updatedUser.address || e.address,
+            documentId: updatedUser.documentId,
+            email: updatedUser.email,
+            photo: updatedUser.avatar,
+            birthDate: updatedUser.birthDate || e.birthDate,
+            cargo: updatedUser.cargo || e.cargo,
+          };
+          saveEmployeeToSupabase(updatedEmp);
+          return updatedEmp;
+        }
+        return e;
+      })
+    );
+
+    // 4. If this user is an admin of a Supermarket, keep supermarket admin info synchronized
+    if (updatedUser.supermarketId) {
+      setSupermarkets((prevSm) =>
+        prevSm.map((s) => {
+          if (s.adminId === updatedUser.id || s.id === updatedUser.supermarketId) {
+            const updatedSm: Supermarket = {
+              ...s,
+              adminName: updatedUser.name,
+              adminEmail: updatedUser.email,
+              adminPhone: updatedUser.phone || s.adminPhone,
+              adminAddress: updatedUser.address || s.adminAddress,
+              adminPhoto: updatedUser.avatar || s.adminPhoto,
+              adminDocumentId: updatedUser.documentId,
+              adminBirthDate: updatedUser.birthDate || s.adminBirthDate,
+            };
+            saveSupermarketToSupabase(updatedSm);
+            return updatedSm;
+          }
+          return s;
+        })
+      );
+    }
+
+    addToast('Perfil actualizado correctamente.', 'success');
+    return { success: true, message: 'Perfil actualizado correctamente.' };
   };
 
   // Handle Login
@@ -1248,6 +1324,7 @@ export default function App() {
             <EmployeeManagement
               key={`emp-${currentUser.id}-${sessionKey}`}
               employees={scopedEmployees}
+              users={users}
               onAddEmployee={handleAddEmployee}
               onUpdateEmployee={handleUpdateEmployee}
               onDeleteEmployee={handleDeleteEmployee}
@@ -1285,6 +1362,9 @@ export default function App() {
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
         onChangePassword={handleChangePassword}
+        onUpdateProfile={handleUpdateProfile}
+        users={users}
+        employees={employees}
       />
 
       {/* Supabase Integration Modal */}

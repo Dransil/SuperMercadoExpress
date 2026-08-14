@@ -1,8 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { User, Employee, Supermarket } from '../types';
 import { INITIAL_USERS, AVATAR_PRESETS } from '../data/mockData';
 import { SupermarketRegisterForm } from './SupermarketRegisterForm';
 import { getSupermarketAccessInfo } from '../utils/saasAccess';
+import {
+  checkUsernameAvailability,
+  checkEmailAvailability,
+} from '../utils/validation';
 import {
   ShoppingBag,
   Lock,
@@ -31,16 +35,18 @@ import {
   Store,
   ChevronsUpDown,
   X,
+  KeyRound,
 } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
   onRegisterUser?: (
-    data: Omit<Employee, 'id' | 'role' | 'status'> & { password: string }
+    data: Omit<Employee, 'id' | 'role' | 'status'> & { password: string; username?: string }
   ) => { success: boolean; message: string };
   onRegisterSupermarket?: (
     newSupermarket: Supermarket,
-    adminPassword: string
+    adminPassword: string,
+    adminUsername?: string
   ) => void;
   users?: (User & { password: string })[];
   employees?: Employee[];
@@ -95,6 +101,7 @@ export const Login: React.FC<LoginProps> = ({
   }, [isComboboxOpen]);
 
   const [regFullName, setRegFullName] = useState('');
+  const [regUsername, setRegUsername] = useState('');
   const [regDocumentId, setRegDocumentId] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regAddress, setRegAddress] = useState('');
@@ -108,6 +115,27 @@ export const Login: React.FC<LoginProps> = ({
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
   const [regErrors, setRegErrors] = useState<Record<string, string>>({});
+
+  // Real-time uniqueness validation for registration
+  const regUsernameCheck = useMemo(() => {
+    if (!regUsername.trim()) return null;
+    return checkUsernameAvailability(regUsername, usersList, employees);
+  }, [regUsername, usersList, employees]);
+
+  const regEmailCheck = useMemo(() => {
+    if (!regEmail.trim()) return null;
+    return checkEmailAvailability(regEmail, usersList, employees);
+  }, [regEmail, usersList, employees]);
+
+  // Handle email change with username auto-suggestion
+  const handleRegEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setRegEmail(val);
+    if (!regUsername && val.includes('@')) {
+      const suggested = val.split('@')[0].toLowerCase().replace(/[^a-z0-9_.-]/g, '');
+      setRegUsername(suggested);
+    }
+  };
 
   // Handle Login Submit
   const handleLoginSubmit = (e: React.FormEvent) => {
@@ -240,12 +268,23 @@ export const Login: React.FC<LoginProps> = ({
     }
 
     if (!regFullName.trim()) errors.fullName = 'El nombre completo es obligatorio.';
+    
+    if (!regUsername.trim()) {
+      errors.username = 'El nombre de usuario es obligatorio.';
+    } else if (regUsernameCheck && !regUsernameCheck.available) {
+      errors.username = regUsernameCheck.message;
+    }
+
     if (!regDocumentId.trim()) errors.documentId = 'El documento de identidad es obligatorio.';
     if (!regPhone.trim()) errors.phone = 'El teléfono es obligatorio.';
     if (!regAddress.trim()) errors.address = 'La dirección de residencia es obligatoria.';
-    if (!regEmail.trim() || !regEmail.includes('@') || !regEmail.includes('.')) {
+    
+    if (!regEmail.trim()) {
       errors.email = 'Ingrese un correo electrónico válido.';
+    } else if (regEmailCheck && !regEmailCheck.available) {
+      errors.email = regEmailCheck.message;
     }
+
     if (!regBirthDate) errors.birthDate = 'La fecha de nacimiento es obligatoria.';
     if (!regHireDate) errors.hireDate = 'La fecha de contratación es obligatoria.';
     if (!regCargo.trim()) errors.cargo = 'El cargo es obligatorio.';
@@ -264,18 +303,13 @@ export const Login: React.FC<LoginProps> = ({
     }
 
     // Check Duplicate Registration
-    const cleanEmail = regEmail.trim().toLowerCase();
     const cleanDoc = regDocumentId.trim();
 
-    const isDuplicateUser = usersList.some(
-      (u) => u.email.toLowerCase() === cleanEmail || u.documentId === cleanDoc
-    );
-    const isDuplicateEmployee = employees?.some(
-      (e) => e.email.toLowerCase() === cleanEmail || e.documentId === cleanDoc
-    );
+    const isDuplicateDoc = usersList.some((u) => u.documentId === cleanDoc) ||
+      employees?.some((e) => e.documentId === cleanDoc);
 
-    if (isDuplicateUser || isDuplicateEmployee) {
-      errors.duplicate = 'El correo electrónico o documento de identidad ya se encuentra registrado.';
+    if (isDuplicateDoc) {
+      errors.duplicate = 'El documento de identidad ya se encuentra registrado.';
     }
 
     setRegErrors(errors);
@@ -291,6 +325,7 @@ export const Login: React.FC<LoginProps> = ({
     if (onRegisterUser) {
       const result = onRegisterUser({
         fullName: regFullName.trim(),
+        username: regUsername.trim().toLowerCase(),
         documentId: regDocumentId.trim(),
         phone: regPhone.trim(),
         address: regAddress.trim(),
@@ -310,6 +345,7 @@ export const Login: React.FC<LoginProps> = ({
         );
         // Reset registration fields
         setRegFullName('');
+        setRegUsername('');
         setRegDocumentId('');
         setRegPhone('');
         setRegAddress('');
@@ -338,9 +374,9 @@ export const Login: React.FC<LoginProps> = ({
         <SupermarketRegisterForm
           existingUsers={usersList}
           existingSupermarkets={supermarkets}
-          onRegisterSupermarket={(newSm, pw) => {
+          onRegisterSupermarket={(newSm, pw, un) => {
             if (onRegisterSupermarket) {
-              onRegisterSupermarket(newSm, pw);
+              onRegisterSupermarket(newSm, pw, un);
             }
           }}
           onBackToLogin={() => setMode('login')}
@@ -766,6 +802,48 @@ export const Login: React.FC<LoginProps> = ({
                   )}
                 </div>
 
+                {/* Nombre de Usuario */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      Nombre de Usuario (Login) *
+                    </label>
+                    {regUsername.trim() && (
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
+                          regUsernameCheck?.available
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-rose-50 text-rose-700'
+                        }`}
+                      >
+                        {regUsernameCheck?.available ? (
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        ) : (
+                          <AlertCircle className="w-3 h-3 text-rose-600" />
+                        )}
+                        {regUsernameCheck?.available ? 'Disponible' : 'Ya en uso'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={regUsername}
+                      onChange={(e) => setRegUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                      placeholder="Ej: ltorres"
+                      className={`w-full pl-9 pr-3 py-2 bg-white border rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none ${
+                        regErrors.username || (regUsername.trim() && !regUsernameCheck?.available)
+                          ? 'border-rose-500 ring-1 ring-rose-500'
+                          : 'border-slate-200 focus:border-indigo-500'
+                      }`}
+                    />
+                  </div>
+                  {regErrors.username && (
+                    <p className="text-[10px] text-rose-500 mt-1">{regErrors.username}</p>
+                  )}
+                </div>
+
                 {/* Documento de Identidad */}
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
@@ -787,18 +865,41 @@ export const Login: React.FC<LoginProps> = ({
 
                 {/* Correo Electrónico */}
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Correo Electrónico (Usuario para iniciar sesión) *
-                  </label>
-                  <input
-                    type="email"
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    placeholder="laura.torres@supermercado.com"
-                    className={`w-full px-3 py-2 bg-white border rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none ${
-                      regErrors.email ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 focus:border-indigo-500'
-                    }`}
-                  />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      Correo Electrónico *
+                    </label>
+                    {regEmail.trim() && (
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
+                          regEmailCheck?.available
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-rose-50 text-rose-700'
+                        }`}
+                      >
+                        {regEmailCheck?.available ? (
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        ) : (
+                          <AlertCircle className="w-3 h-3 text-rose-600" />
+                        )}
+                        {regEmailCheck?.available ? 'Disponible' : 'Ya en uso'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      value={regEmail}
+                      onChange={handleRegEmailChange}
+                      placeholder="laura.torres@supermercado.com"
+                      className={`w-full pl-9 pr-3 py-2 bg-white border rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none ${
+                        regErrors.email || (regEmail.trim() && !regEmailCheck?.available)
+                          ? 'border-rose-500 ring-1 ring-rose-500'
+                          : 'border-slate-200 focus:border-indigo-500'
+                      }`}
+                    />
+                  </div>
                   {regErrors.email && (
                     <p className="text-[10px] text-rose-500 mt-1">{regErrors.email}</p>
                   )}

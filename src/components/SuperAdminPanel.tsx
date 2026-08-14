@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Supermarket, SupermarketStatus } from '../types';
+import { Supermarket, SupermarketStatus, User, Employee } from '../types';
 import {
   getTodayIsoString,
   getSupermarketAccessInfo,
@@ -9,6 +9,7 @@ import {
 import { AccessControlTable } from './AccessControlTable';
 import { SaaSCalendar } from './SaaSCalendar';
 import { SetAccessPeriodModal } from './SetAccessPeriodModal';
+import { CreateSupermarketModal } from './CreateSupermarketModal';
 import {
   Building2,
   CheckCircle2,
@@ -16,7 +17,7 @@ import {
   Clock,
   Search,
   Filter,
-  User,
+  User as UserIcon,
   Mail,
   Phone,
   MapPin,
@@ -34,24 +35,35 @@ import {
   AlertTriangle,
   PowerOff,
   SlidersHorizontal,
+  PlusCircle,
 } from 'lucide-react';
 
 interface SuperAdminPanelProps {
   supermarkets: Supermarket[];
+  existingUsers?: User[];
+  existingEmployees?: Employee[];
   onApproveSupermarket: (supermarketId: string, startDate?: string, expirationDate?: string) => void;
   onRejectSupermarket: (supermarketId: string, reason?: string) => void;
   onSaveAccessPeriod: (supermarketId: string, startDate: string, expirationDate: string, notes?: string) => void;
   onDeactivateSupermarket: (supermarketId: string, reason?: string) => void;
+  onCreateSupermarket?: (
+    supermarket: Supermarket,
+    adminUser: User & { password: string },
+    adminEmployee: Employee
+  ) => void;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   referenceDate?: string;
 }
 
 export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
   supermarkets,
+  existingUsers = [],
+  existingEmployees = [],
   onApproveSupermarket,
   onRejectSupermarket,
   onSaveAccessPeriod,
   onDeactivateSupermarket,
+  onCreateSupermarket,
   showToast,
   referenceDate = getTodayIsoString(),
 }) => {
@@ -68,6 +80,9 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
   // Access Period Modal state
   const [periodModalSupermarket, setPeriodModalSupermarket] = useState<Supermarket | null>(null);
   const [isPeriodModalOpen, setIsPeriodModalOpen] = useState(false);
+
+  // Create Supermarket Modal state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Compute metrics with saasAccess logic
   const evaluatedAll = useMemo(() => {
@@ -227,19 +242,31 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
             </p>
           </div>
 
-          {expiringSoonCount > 0 && (
-            <div className="shrink-0 bg-amber-500/20 border border-amber-400/40 rounded-xl p-4 flex items-center gap-3 text-amber-200">
-              <AlertTriangle className="w-6 h-6 text-amber-400 animate-pulse" />
-              <div>
-                <p className="text-xs font-bold text-amber-300 uppercase tracking-wider">
-                  Alerta de Vencimiento
-                </p>
-                <p className="text-sm font-semibold text-white">
-                  {expiringSoonCount} {expiringSoonCount === 1 ? 'supermercado vence pronto' : 'supermercados vencen pronto'} (≤7 días)
-                </p>
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <button
+              id="btn-open-create-supermarket"
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="px-4 py-3 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all cursor-pointer hover:scale-[1.02]"
+            >
+              <PlusCircle className="w-4 h-4 text-white" />
+              <span>+ Crear Supermercado / Admin</span>
+            </button>
+
+            {expiringSoonCount > 0 && (
+              <div className="bg-amber-500/20 border border-amber-400/40 rounded-xl p-3 flex items-center gap-3 text-amber-200">
+                <AlertTriangle className="w-5 h-5 text-amber-400 animate-pulse" />
+                <div>
+                  <p className="text-[10px] font-bold text-amber-300 uppercase tracking-wider">
+                    Alerta Vigencia
+                  </p>
+                  <p className="text-xs font-semibold text-white">
+                    {expiringSoonCount} {expiringSoonCount === 1 ? 'vence pronto' : 'vencen pronto'} (≤7d)
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -412,19 +439,29 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
                 </p>
               </div>
 
-              {/* Filter Tabs */}
-              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto">
+              {/* Action and Filter Tabs */}
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setStatusFilter('todos')}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                    statusFilter === 'todos'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
                 >
-                  Todos ({supermarkets.length})
+                  <PlusCircle className="w-4 h-4 text-white" />
+                  <span>+ Nuevo Supermercado</span>
                 </button>
+
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto">
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('todos')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                      statusFilter === 'todos'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Todos ({supermarkets.length})
+                  </button>
                 <button
                   type="button"
                   onClick={() => setStatusFilter('pendiente')}
@@ -460,6 +497,7 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
                 </button>
               </div>
             </div>
+          </div>
 
             {/* Search Input */}
             <div className="mt-4 relative">
@@ -908,6 +946,21 @@ export const SuperAdminPanel: React.FC<SuperAdminPanelProps> = ({
           </div>
         </div>
       )}
+
+      {/* CREATE SUPERMARKET & ADMIN MODAL (MANUAL SUPERADMIN CREATION) */}
+      <CreateSupermarketModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        existingUsers={existingUsers}
+        existingEmployees={existingEmployees}
+        existingSupermarkets={supermarkets}
+        onCreateSupermarket={(sm, adminUser, adminEmp) => {
+          if (onCreateSupermarket) {
+            onCreateSupermarket(sm, adminUser, adminEmp);
+          }
+          showToast(`¡Supermercado "${sm.name}" y Administrador creados y verificados con éxito!`, 'success');
+        }}
+      />
     </div>
   );
 };

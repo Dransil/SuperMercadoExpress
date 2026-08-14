@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
-import { Employee, UserRole, UserStatus } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Employee, User, UserRole, UserStatus } from '../types';
 import { AVATAR_PRESETS } from '../data/mockData';
+import {
+  checkUsernameAvailability,
+  checkEmailAvailability,
+} from '../utils/validation';
 import {
   UserPlus,
   Search,
@@ -25,10 +29,12 @@ import {
   ShieldCheck,
   UserCheck,
   Building2,
+  AlertCircle,
 } from 'lucide-react';
 
 interface EmployeeManagementProps {
   employees: Employee[];
+  users?: (User & { password?: string })[];
   onAddEmployee: (
     employee: Omit<Employee, 'id'>,
     accessAccount?: { username: string; password: string; createAccount: boolean }
@@ -43,6 +49,7 @@ interface EmployeeManagementProps {
 
 export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   employees,
+  users = [],
   onAddEmployee,
   onUpdateEmployee,
   onDeleteEmployee,
@@ -88,6 +95,19 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
   // Form Validation & Error state
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Real-time email and username uniqueness checks
+  const emailCheck = useMemo(() => {
+    if (!email.trim() || !email.includes('@')) return null;
+    return checkEmailAvailability(email, users, employees, editingEmployee?.id);
+  }, [email, users, employees, editingEmployee]);
+
+  const effectiveUsername = accountUsername.trim() || (email.includes('@') ? email.split('@')[0].toLowerCase().replace(/[^a-z0-9_.-]/g, '') : '');
+
+  const usernameCheck = useMemo(() => {
+    if (!createAccessAccount || editingEmployee || !effectiveUsername) return null;
+    return checkUsernameAvailability(effectiveUsername, users, employees);
+  }, [effectiveUsername, createAccessAccount, editingEmployee, users, employees]);
 
   // Counts for Badges
   const pendingCount = employees.filter((e) => e.status === 'pendiente').length;
@@ -164,7 +184,19 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     if (!documentId.trim()) errors.documentId = 'El documento de identidad es obligatorio.';
     if (!phone.trim()) errors.phone = 'El teléfono es obligatorio.';
     if (!address.trim()) errors.address = 'La dirección es obligatoria.';
-    if (!email.trim() || !email.includes('@')) errors.email = 'Ingrese un correo electrónico válido.';
+    
+    if (!email.trim() || !email.includes('@')) {
+      errors.email = 'Ingrese un correo electrónico válido.';
+    } else if (emailCheck && !emailCheck.available) {
+      errors.email = emailCheck.message;
+    }
+
+    if (!editingEmployee && createAccessAccount) {
+      if (usernameCheck && !usernameCheck.available) {
+        errors.accountUsername = usernameCheck.message;
+      }
+    }
+
     if (!birthDate) errors.birthDate = 'La fecha de nacimiento es obligatoria.';
     if (!hireDate) errors.hireDate = 'La fecha de contratación es obligatoria.';
     if (!photo.trim()) errors.photo = 'Seleccione o ingrese una URL de fotografía.';
@@ -851,9 +883,27 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
                 {/* Correo Electrónico */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Correo Electrónico *
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Correo Electrónico *
+                    </label>
+                    {email.trim() && (
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md flex items-center gap-1 ${
+                          emailCheck?.available
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-rose-50 text-rose-700'
+                        }`}
+                      >
+                        {emailCheck?.available ? (
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        ) : (
+                          <AlertCircle className="w-3 h-3 text-rose-600" />
+                        )}
+                        {emailCheck?.available ? 'Disponible' : 'En uso'}
+                      </span>
+                    )}
+                  </div>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                       <Mail className="w-4 h-4" />
@@ -864,7 +914,9 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="ejemplo@supermercado.com"
                       className={`w-full pl-9 pr-3 py-2 bg-white border rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none ${
-                        formErrors.email ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
+                        formErrors.email || (email.trim() && !emailCheck?.available)
+                          ? 'border-rose-500 ring-1 ring-rose-500'
+                          : 'border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
                       }`}
                     />
                   </div>
@@ -1059,17 +1111,42 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                     {createAccessAccount && (
                       <div className="pt-2.5 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs animate-fadeIn">
                         <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                            Usuario / Alias de Acceso
-                          </label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[11px] font-bold text-slate-700">
+                              Usuario / Alias de Acceso
+                            </label>
+                            {effectiveUsername && (
+                              <span
+                                className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md flex items-center gap-1 ${
+                                  usernameCheck?.available
+                                    ? 'bg-emerald-50 text-emerald-700'
+                                    : 'bg-rose-50 text-rose-700'
+                                }`}
+                              >
+                                {usernameCheck?.available ? (
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                ) : (
+                                  <AlertCircle className="w-3 h-3 text-rose-600" />
+                                )}
+                                {usernameCheck?.available ? 'Disponible' : 'En uso'}
+                              </span>
+                            )}
+                          </div>
                           <input
                             type="text"
                             value={accountUsername}
-                            onChange={(e) => setAccountUsername(e.target.value)}
+                            onChange={(e) => setAccountUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
                             placeholder={email ? email.split('@')[0] : 'Ej: laura_cajera'}
-                            className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
+                            className={`w-full px-3 py-1.5 bg-white border rounded-lg text-xs text-slate-800 focus:outline-none ${
+                              formErrors.accountUsername || (effectiveUsername && !usernameCheck?.available)
+                                ? 'border-rose-400 ring-1 ring-rose-300'
+                                : 'border-slate-200 focus:border-emerald-500'
+                            }`}
                           />
-                          <span className="text-[10px] text-slate-400">
+                          {formErrors.accountUsername && (
+                            <p className="text-[10px] text-rose-600 font-medium mt-1">{formErrors.accountUsername}</p>
+                          )}
+                          <span className="text-[10px] text-slate-400 block mt-0.5">
                             Si se omite, se generará a partir del correo.
                           </span>
                         </div>
