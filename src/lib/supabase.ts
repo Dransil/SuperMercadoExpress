@@ -33,137 +33,29 @@ export async function checkSupabaseConnection(): Promise<{ connected: boolean; e
 /**
  * SQL Script generator for Supabase SQL Editor
  */
-export const SUPABASE_SQL_SCHEMA = `-- ESQUEMA DE BASE DE DATOS SUPABASE PARA SUPERMERCADO POS (SaaS)
+export const SUPABASE_SQL_SCHEMA = `-- =========================================================================
+-- 1. ELIMINACIÓN DE TABLAS EXISTENTES (CASCADE PARA RESET COMPLETO)
+-- =========================================================================
+DROP TABLE IF EXISTS public.shift_closures CASCADE;
+DROP TABLE IF EXISTS public.sales CASCADE;
+DROP TABLE IF EXISTS public.inventory_movements CASCADE;
+DROP TABLE IF EXISTS public.products CASCADE;
+DROP TABLE IF EXISTS public.employees CASCADE;
+DROP TABLE IF EXISTS public.users CASCADE;
+DROP TABLE IF EXISTS public.supermarkets CASCADE;
 
--- 1. Tabla de Usuarios
-CREATE TABLE IF NOT EXISTS public.users (
-  id TEXT PRIMARY KEY,
-  username TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'cajero',
-  avatar TEXT,
-  document_id TEXT,
-  employee_id TEXT,
-  supermarket_id TEXT,
-  supermarket_name TEXT,
-  password TEXT,
-  status TEXT DEFAULT 'activo',
-  phone TEXT,
-  address TEXT,
-  birth_date TEXT,
-  hire_date TEXT,
-  cargo TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- =========================================================================
+-- 2. CREACIÓN DE TABLAS DEL MODELO SAAS MULTI-TENANT
+-- =========================================================================
 
--- 2. Tabla de Empleados
-CREATE TABLE IF NOT EXISTS public.employees (
-  id TEXT PRIMARY KEY,
-  full_name TEXT NOT NULL,
-  document_id TEXT NOT NULL,
-  phone TEXT,
-  address TEXT,
-  email TEXT,
-  birth_date TEXT,
-  hire_date TEXT,
-  role TEXT NOT NULL DEFAULT 'cajero',
-  photo TEXT,
-  status TEXT DEFAULT 'activo',
-  supermarket_id TEXT,
-  supermarket_name TEXT,
-  cargo TEXT,
-  registration_date TEXT,
-  user_id TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 3. Tabla de Productos
-CREATE TABLE IF NOT EXISTS public.products (
-  id TEXT PRIMARY KEY,
-  code TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  description TEXT,
-  category TEXT,
-  brand TEXT,
-  selling_unit TEXT,
-  purchase_price NUMERIC(10,2) DEFAULT 0,
-  sale_price NUMERIC(10,2) DEFAULT 0,
-  status TEXT DEFAULT 'activo',
-  image TEXT,
-  stock NUMERIC(10,2) DEFAULT 0,
-  supermarket_id TEXT,
-  supermarket_name TEXT,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 4. Tabla de Movimientos de Inventario
-CREATE TABLE IF NOT EXISTS public.inventory_movements (
-  id TEXT PRIMARY KEY,
-  product_id TEXT NOT NULL,
-  product_code TEXT,
-  product_name TEXT,
-  product_image TEXT,
-  movement_type TEXT NOT NULL,
-  quantity NUMERIC(10,2) NOT NULL,
-  previous_stock NUMERIC(10,2) NOT NULL,
-  new_stock NUMERIC(10,2) NOT NULL,
-  reason TEXT,
-  date TEXT NOT NULL,
-  user_id TEXT,
-  user_name TEXT,
-  supermarket_id TEXT,
-  supermarket_name TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 5. Tabla de Ventas
-CREATE TABLE IF NOT EXISTS public.sales (
-  id TEXT PRIMARY KEY,
-  date TEXT NOT NULL,
-  cashier_id TEXT NOT NULL,
-  cashier_name TEXT NOT NULL,
-  items JSONB NOT NULL DEFAULT '[]'::jsonb,
-  subtotal NUMERIC(10,2) NOT NULL,
-  discount NUMERIC(10,2) DEFAULT 0,
-  total NUMERIC(10,2) NOT NULL,
-  payment_method TEXT NOT NULL,
-  amount_tendered NUMERIC(10,2),
-  change_given NUMERIC(10,2),
-  supermarket_id TEXT,
-  supermarket_name TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 6. Tabla de Cierres de Jornada
-CREATE TABLE IF NOT EXISTS public.shift_closures (
-  id TEXT PRIMARY KEY,
-  date TEXT NOT NULL,
-  cashier_id TEXT NOT NULL,
-  cashier_name TEXT NOT NULL,
-  sales_count INT DEFAULT 0,
-  total_sales NUMERIC(10,2) DEFAULT 0,
-  cash_total NUMERIC(10,2) DEFAULT 0,
-  card_total NUMERIC(10,2) DEFAULT 0,
-  transfer_total NUMERIC(10,2) DEFAULT 0,
-  declared_cash NUMERIC(10,2) DEFAULT 0,
-  expected_cash NUMERIC(10,2) DEFAULT 0,
-  difference NUMERIC(10,2) DEFAULT 0,
-  status TEXT NOT NULL,
-  closed_at TEXT NOT NULL,
-  supermarket_id TEXT,
-  supermarket_name TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 7. Tabla de Supermercados (SaaS Multi-Supermercado)
-CREATE TABLE IF NOT EXISTS public.supermarkets (
+-- 2.1 Tabla de Supermercados (Gestión de Licenciamiento SaaS)
+CREATE TABLE public.supermarkets (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   address TEXT NOT NULL,
   phone TEXT NOT NULL,
   email TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pendiente',
+  status TEXT NOT NULL DEFAULT 'pendiente' CHECK (status IN ('pendiente', 'activo', 'vencido', 'desactivado')),
   registration_date TEXT NOT NULL,
   start_date TEXT,
   expiration_date TEXT,
@@ -185,14 +77,263 @@ CREATE TABLE IF NOT EXISTS public.supermarkets (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Deshabilitar RLS temporalmente para permitir lecturas/escrituras desde la clave anon
-ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.employees DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.products DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.inventory_movements DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.sales DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.shift_closures DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.supermarkets DISABLE ROW LEVEL SECURITY;
+-- 2.2 Tabla de Usuarios y Credenciales
+CREATE TABLE public.users (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'cajero' CHECK (role IN ('superadmin', 'admin', 'cajero')),
+  avatar TEXT,
+  document_id TEXT,
+  employee_id TEXT,
+  supermarket_id TEXT REFERENCES public.supermarkets(id) ON DELETE SET NULL,
+  supermarket_name TEXT,
+  status TEXT DEFAULT 'activo' CHECK (status IN ('activo', 'inactivo', 'pendiente')),
+  phone TEXT,
+  address TEXT,
+  birth_date TEXT,
+  hire_date TEXT,
+  cargo TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2.3 Tabla de Empleados
+CREATE TABLE public.employees (
+  id TEXT PRIMARY KEY,
+  full_name TEXT NOT NULL,
+  document_id TEXT NOT NULL,
+  phone TEXT,
+  address TEXT,
+  email TEXT,
+  birth_date TEXT,
+  hire_date TEXT,
+  role TEXT NOT NULL DEFAULT 'cajero' CHECK (role IN ('superadmin', 'admin', 'cajero')),
+  photo TEXT,
+  status TEXT DEFAULT 'activo' CHECK (status IN ('activo', 'inactivo', 'pendiente')),
+  supermarket_id TEXT REFERENCES public.supermarkets(id) ON DELETE CASCADE,
+  supermarket_name TEXT,
+  cargo TEXT,
+  registration_date TEXT,
+  user_id TEXT REFERENCES public.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2.4 Tabla de Catálogo de Productos
+CREATE TABLE public.products (
+  id TEXT PRIMARY KEY,
+  code TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  category TEXT DEFAULT 'General',
+  brand TEXT,
+  selling_unit TEXT DEFAULT 'Unidad',
+  purchase_price NUMERIC(10,2) DEFAULT 0,
+  sale_price NUMERIC(10,2) DEFAULT 0,
+  status TEXT DEFAULT 'activo' CHECK (status IN ('activo', 'inactivo')),
+  image TEXT,
+  stock NUMERIC(10,2) DEFAULT 0,
+  supermarket_id TEXT REFERENCES public.supermarkets(id) ON DELETE CASCADE,
+  supermarket_name TEXT,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2.5 Tabla de Movimientos de Inventario (Kardex)
+CREATE TABLE public.inventory_movements (
+  id TEXT PRIMARY KEY,
+  product_id TEXT NOT NULL,
+  product_code TEXT,
+  product_name TEXT,
+  product_image TEXT,
+  movement_type TEXT NOT NULL CHECK (movement_type IN ('entrada', 'salida', 'ajuste')),
+  quantity NUMERIC(10,2) NOT NULL,
+  previous_stock NUMERIC(10,2) NOT NULL,
+  new_stock NUMERIC(10,2) NOT NULL,
+  reason TEXT,
+  date TEXT NOT NULL,
+  user_id TEXT,
+  user_name TEXT,
+  supermarket_id TEXT REFERENCES public.supermarkets(id) ON DELETE CASCADE,
+  supermarket_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2.6 Tabla de Ventas (Punto de Venta POS)
+CREATE TABLE public.sales (
+  id TEXT PRIMARY KEY,
+  date TEXT NOT NULL,
+  cashier_id TEXT NOT NULL,
+  cashier_name TEXT NOT NULL,
+  items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  subtotal NUMERIC(10,2) NOT NULL,
+  discount NUMERIC(10,2) DEFAULT 0,
+  total NUMERIC(10,2) NOT NULL,
+  payment_method TEXT NOT NULL CHECK (payment_method IN ('efectivo', 'tarjeta', 'transferencia')),
+  amount_tendered NUMERIC(10,2),
+  change_given NUMERIC(10,2),
+  supermarket_id TEXT REFERENCES public.supermarkets(id) ON DELETE CASCADE,
+  supermarket_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2.7 Tabla de Cierres de Turno / Arqueo de Caja
+CREATE TABLE public.shift_closures (
+  id TEXT PRIMARY KEY,
+  date TEXT NOT NULL,
+  cashier_id TEXT NOT NULL,
+  cashier_name TEXT NOT NULL,
+  sales_count INT DEFAULT 0,
+  total_sales NUMERIC(10,2) DEFAULT 0,
+  cash_total NUMERIC(10,2) DEFAULT 0,
+  card_total NUMERIC(10,2) DEFAULT 0,
+  transfer_total NUMERIC(10,2) DEFAULT 0,
+  declared_cash NUMERIC(10,2) DEFAULT 0,
+  expected_cash NUMERIC(10,2) DEFAULT 0,
+  difference NUMERIC(10,2) DEFAULT 0,
+  status TEXT NOT NULL CHECK (status IN ('coincidencia', 'faltante', 'sobrante')),
+  closed_at TEXT NOT NULL,
+  supermarket_id TEXT REFERENCES public.supermarkets(id) ON DELETE CASCADE,
+  supermarket_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =========================================================================
+-- 3. ÍNDICES DE RENDIMIENTO MULTI-TENANT
+-- =========================================================================
+CREATE INDEX IF NOT EXISTS idx_users_supermarket ON public.users(supermarket_id);
+CREATE INDEX IF NOT EXISTS idx_employees_supermarket ON public.employees(supermarket_id);
+CREATE INDEX IF NOT EXISTS idx_products_supermarket ON public.products(supermarket_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_supermarket ON public.inventory_movements(supermarket_id);
+CREATE INDEX IF NOT EXISTS idx_sales_supermarket ON public.sales(supermarket_id);
+CREATE INDEX IF NOT EXISTS idx_shift_closures_supermarket ON public.shift_closures(supermarket_id);
+
+-- =========================================================================
+-- 4. REGISTROS INICIALES: SUPER ADMINISTRADOR GLOBAL SAAS
+-- =========================================================================
+INSERT INTO public.users (
+  id,
+  username,
+  email,
+  password,
+  name,
+  role,
+  document_id,
+  status,
+  cargo,
+  avatar
+) VALUES (
+  'u-superadmin',
+  'superadmin',
+  'thecobra1783@gmail.com',
+  'taqcod789456.-.',
+  'Emanuel Taquichiri',
+  'superadmin',
+  '0000000000',
+  'activo',
+  'Super Administrador Plataforma',
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250'
+) ON CONFLICT (id) DO UPDATE SET
+  username = EXCLUDED.username,
+  email = EXCLUDED.email,
+  password = EXCLUDED.password,
+  name = EXCLUDED.name,
+  role = EXCLUDED.role,
+  cargo = EXCLUDED.cargo;
+
+INSERT INTO public.employees (
+  id,
+  full_name,
+  document_id,
+  phone,
+  address,
+  email,
+  birth_date,
+  hire_date,
+  role,
+  photo,
+  status,
+  cargo,
+  registration_date,
+  user_id
+) VALUES (
+  'emp-superadmin',
+  'Emanuel Taquichiri',
+  '0000000000',
+  '+591 70000000',
+  'Oficina Central SaaS',
+  'thecobra1783@gmail.com',
+  '1995-01-01',
+  '2024-01-01',
+  'superadmin',
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
+  'activo',
+  'Super Administrador Plataforma',
+  '2024-01-01',
+  'u-superadmin'
+) ON CONFLICT (id) DO NOTHING;
+
+-- =========================================================================
+-- 5. HABILITACIÓN DE ROW LEVEL SECURITY (RLS)
+-- =========================================================================
+ALTER TABLE public.supermarkets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.employees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_movements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shift_closures ENABLE ROW LEVEL SECURITY;
+
+-- =========================================================================
+-- 6. POLÍTICAS DE ACCESO PARA LAS OPERACIONES DEL SISTEMA
+-- =========================================================================
+
+-- Supermarkets
+DROP POLICY IF EXISTS "Permitir lectura publica de supermercados" ON public.supermarkets;
+CREATE POLICY "Permitir lectura publica de supermercados" ON public.supermarkets
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Permitir insercion de registros de supermercados" ON public.supermarkets;
+CREATE POLICY "Permitir insercion de registros de supermercados" ON public.supermarkets
+  FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Permitir actualizacion de supermercados" ON public.supermarkets;
+CREATE POLICY "Permitir actualizacion de supermercados" ON public.supermarkets
+  FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Permitir eliminacion de supermercados" ON public.supermarkets;
+CREATE POLICY "Permitir eliminacion de supermercados" ON public.supermarkets
+  FOR DELETE USING (true);
+
+-- Users
+DROP POLICY IF EXISTS "Permitir acceso a usuarios" ON public.users;
+CREATE POLICY "Permitir acceso a usuarios" ON public.users
+  FOR ALL USING (true);
+
+-- Employees
+DROP POLICY IF EXISTS "Permitir acceso a empleados" ON public.employees;
+CREATE POLICY "Permitir acceso a empleados" ON public.employees
+  FOR ALL USING (true);
+
+-- Products
+DROP POLICY IF EXISTS "Permitir acceso a productos" ON public.products;
+CREATE POLICY "Permitir acceso a productos" ON public.products
+  FOR ALL USING (true);
+
+-- Kardex / Inventario
+DROP POLICY IF EXISTS "Permitir acceso a kardex inventario" ON public.inventory_movements;
+CREATE POLICY "Permitir acceso a kardex inventario" ON public.inventory_movements
+  FOR ALL USING (true);
+
+-- Ventas POS
+DROP POLICY IF EXISTS "Permitir acceso a ventas" ON public.sales;
+CREATE POLICY "Permitir acceso a ventas" ON public.sales
+  FOR ALL USING (true);
+
+-- Cierres de Turno
+DROP POLICY IF EXISTS "Permitir acceso a cierres de turno" ON public.shift_closures;
+CREATE POLICY "Permitir acceso a cierres de turno" ON public.shift_closures
+  FOR ALL USING (true);
 `;
 
 // Fetchers from Supabase

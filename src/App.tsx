@@ -50,7 +50,6 @@ import {
   fetchMovementsFromSupabase,
   fetchShiftClosuresFromSupabase,
   fetchSupermarketsFromSupabase,
-  ensureAdminInSupabase,
   saveProductToSupabase,
   deleteProductFromSupabase,
   saveSaleToSupabase,
@@ -151,9 +150,6 @@ export default function App() {
   useEffect(() => {
     const loadSupabaseData = async () => {
       try {
-        // Ensure Admin and Super Admin users exist in Supabase
-        await ensureAdminInSupabase();
-
         // Fetch tables from Supabase in parallel
         const [
           dbUsers,
@@ -207,19 +203,13 @@ export default function App() {
         }
 
         if (dbEmployees && dbEmployees.length > 0) {
-          const empMap = new Map<string, Employee>();
-          INITIAL_EMPLOYEES.forEach((e) => empMap.set(e.id, e));
-          dbEmployees.forEach((e) => empMap.set(e.id, { ...empMap.get(e.id), ...e }));
-          setEmployees(Array.from(empMap.values()));
+          setEmployees(dbEmployees);
         } else {
           setEmployees(INITIAL_EMPLOYEES);
         }
 
         if (dbSupermarkets && dbSupermarkets.length > 0) {
-          const smMap = new Map<string, Supermarket>();
-          INITIAL_SUPERMARKETS.forEach((s) => smMap.set(s.id, s));
-          dbSupermarkets.forEach((s) => smMap.set(s.id, { ...smMap.get(s.id), ...s }));
-          setSupermarkets(Array.from(smMap.values()));
+          setSupermarkets(dbSupermarkets);
         } else {
           setSupermarkets(INITIAL_SUPERMARKETS);
         }
