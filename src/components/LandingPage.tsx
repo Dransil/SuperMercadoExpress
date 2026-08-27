@@ -31,13 +31,17 @@ import {
   Shield,
   Smartphone,
   SlidersHorizontal,
+  Crown,
+  LayoutDashboard,
 } from 'lucide-react';
-import { Supermarket } from '../types';
+import { Supermarket, User } from '../types';
 
 interface LandingPageProps {
   onNavigateToLogin: () => void;
   onNavigateToRegisterSupermarket: () => void;
   onNavigateToRegisterEmployee: () => void;
+  onNavigateToDashboard?: () => void;
+  currentUser?: User | null;
   supermarkets?: Supermarket[];
 }
 
@@ -45,6 +49,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onNavigateToLogin,
   onNavigateToRegisterSupermarket,
   onNavigateToRegisterEmployee,
+  onNavigateToDashboard,
+  currentUser,
   supermarkets = [],
 }) => {
   const [activeTabFeature, setActiveTabFeature] = useState<
@@ -61,6 +67,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white flex flex-col">
+      {/* 0. ACTIVE SESSION NOTICE (IF LOGGED IN) */}
+      {currentUser && (
+        <div className="bg-emerald-950/90 border-b border-emerald-800/80 px-4 py-2 text-xs text-emerald-200 flex items-center justify-between gap-3 shadow-inner">
+          <div className="flex items-center gap-2 max-w-4xl truncate">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span>
+              Sesión activa iniciada como <strong className="text-white font-bold">{currentUser.name}</strong> ({currentUser.role === 'superadmin' ? 'Super Administrador' : currentUser.role === 'admin' ? 'Administrador' : 'Cajero'}). Tu cuenta permanece abierta.
+            </span>
+          </div>
+          {onNavigateToDashboard && (
+            <button
+              onClick={onNavigateToDashboard}
+              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs shrink-0 flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              <span>Ir a mi Panel</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* 1. TOP NAVBAR */}
       <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
@@ -102,14 +130,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           {/* Action CTAs */}
           <div className="flex items-center gap-3">
-            <button
-              id="landing-login-nav-btn"
-              type="button"
-              onClick={() => onNavigateToLogin()}
-              className="px-4 py-2 text-sm font-bold text-slate-200 hover:text-white hover:bg-slate-800 rounded-xl transition-all border border-slate-700/60 cursor-pointer"
-            >
-              Iniciar Sesión
-            </button>
+            {currentUser && onNavigateToDashboard ? (
+              <button
+                id="landing-panel-nav-btn"
+                type="button"
+                onClick={onNavigateToDashboard}
+                className="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-md shadow-emerald-600/30 transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Ir al Panel ({currentUser.name.split(' ')[0]})</span>
+              </button>
+            ) : (
+              <button
+                id="landing-login-nav-btn"
+                type="button"
+                onClick={() => onNavigateToLogin()}
+                className="px-4 py-2 text-sm font-bold text-slate-200 hover:text-white hover:bg-slate-800 rounded-xl transition-all border border-slate-700/60 cursor-pointer"
+              >
+                Iniciar Sesión
+              </button>
+            )}
             <button
               id="landing-register-nav-btn"
               type="button"
@@ -154,26 +194,41 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
             {/* Primary Action Buttons */}
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-              <button
-                id="hero-register-btn"
-                type="button"
-                onClick={onNavigateToRegisterSupermarket}
-                className="w-full sm:w-auto px-7 py-3.5 text-base font-bold text-slate-950 bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-300 hover:from-emerald-300 hover:to-teal-200 rounded-xl shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer transform hover:-translate-y-0.5"
-              >
-                <Building2 className="w-5 h-5 text-slate-950" />
-                <span>Registrar Nuevo Supermercado</span>
-                <ArrowRight className="w-4 h-4 text-slate-950" />
-              </button>
+              {currentUser && onNavigateToDashboard ? (
+                <button
+                  id="hero-panel-btn"
+                  type="button"
+                  onClick={onNavigateToDashboard}
+                  className="w-full sm:w-auto px-8 py-3.5 text-base font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 rounded-xl shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer transform hover:-translate-y-0.5"
+                >
+                  <LayoutDashboard className="w-5 h-5" />
+                  <span>Continuar a mi Panel ({currentUser.name})</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <>
+                  <button
+                    id="hero-register-btn"
+                    type="button"
+                    onClick={onNavigateToRegisterSupermarket}
+                    className="w-full sm:w-auto px-7 py-3.5 text-base font-bold text-slate-950 bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-300 hover:from-emerald-300 hover:to-teal-200 rounded-xl shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer transform hover:-translate-y-0.5"
+                  >
+                    <Building2 className="w-5 h-5 text-slate-950" />
+                    <span>Registrar Nuevo Supermercado</span>
+                    <ArrowRight className="w-4 h-4 text-slate-950" />
+                  </button>
 
-              <button
-                id="hero-login-btn"
-                type="button"
-                onClick={() => onNavigateToLogin()}
-                className="w-full sm:w-auto px-6 py-3.5 text-base font-bold text-white bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
-              >
-                <KeyRound className="w-5 h-5 text-indigo-400" />
-                <span>Ingresar al Sistema</span>
-              </button>
+                  <button
+                    id="hero-login-btn"
+                    type="button"
+                    onClick={() => onNavigateToLogin()}
+                    className="w-full sm:w-auto px-6 py-3.5 text-base font-bold text-white bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                  >
+                    <KeyRound className="w-5 h-5 text-indigo-400" />
+                    <span>Ingresar al Sistema</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 

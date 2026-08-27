@@ -55,6 +55,9 @@ interface LoginProps {
   initialIdentifier?: string;
   initialPassword?: string;
   onBackToLanding?: () => void;
+  currentUser?: User | null;
+  onNavigateToDashboard?: () => void;
+  onModeChange?: (mode: 'login' | 'register-supermarket' | 'register-employee') => void;
 }
 
 export const Login: React.FC<LoginProps> = ({
@@ -68,11 +71,22 @@ export const Login: React.FC<LoginProps> = ({
   initialIdentifier = '',
   initialPassword = '',
   onBackToLanding,
+  currentUser,
+  onNavigateToDashboard,
+  onModeChange,
 }) => {
   const usersList = users && users.length > 0 ? users : INITIAL_USERS;
 
   // View state: 'login' | 'register-supermarket' | 'register-employee'
   const [mode, setMode] = useState<'login' | 'register-supermarket' | 'register-employee'>(initialMode);
+
+  // Helper to change mode with parent notification
+  const switchMode = (newMode: 'login' | 'register-supermarket' | 'register-employee') => {
+    setMode(newMode);
+    if (onModeChange) {
+      onModeChange(newMode);
+    }
+  };
 
   // Login form state
   const [identifier, setIdentifier] = useState(initialIdentifier);
@@ -388,17 +402,17 @@ export const Login: React.FC<LoginProps> = ({
   // If in 'register-supermarket' mode, render the SupermarketRegisterForm
   if (mode === 'register-supermarket') {
     return (
-      <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-center items-center p-4 relative overflow-y-auto font-sans py-10">
+      <div className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] text-slate-100 flex flex-col justify-center items-center p-4 relative overflow-y-auto font-sans py-10">
         {onBackToLanding && (
           <div className="w-full max-w-2xl mb-4 flex items-center justify-between">
             <button
               type="button"
               onClick={onBackToLanding}
-              className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white bg-slate-900/90 hover:bg-slate-800 px-3.5 py-1.5 rounded-xl border border-slate-800 transition-all cursor-pointer shadow-xs"
             >
-              <span>← Volver a la página principal</span>
+              <span>← Inicio</span>
             </button>
-            <span className="text-xs text-indigo-400 font-medium">Registro de Nuevo Supermercado</span>
+            <span className="text-xs text-emerald-400 font-semibold">Registro de Nuevo Supermercado</span>
           </div>
         )}
         <SupermarketRegisterForm
@@ -409,7 +423,7 @@ export const Login: React.FC<LoginProps> = ({
               onRegisterSupermarket(newSm, pw, un);
             }
           }}
-          onBackToLogin={() => setMode('login')}
+          onBackToLogin={() => switchMode('login')}
         />
       </div>
     );
@@ -436,6 +450,33 @@ export const Login: React.FC<LoginProps> = ({
       </div>
 
       <div className="w-full max-w-md my-auto">
+        {/* Active Session Notice Banner */}
+        {currentUser && onNavigateToDashboard && (
+          <div className="mb-5 p-4 bg-slate-900/90 border border-emerald-500/40 rounded-2xl flex items-center justify-between gap-3 shadow-xl backdrop-blur-md animate-fadeIn">
+            <div className="flex items-center gap-3 min-w-0">
+              <img
+                src={currentUser.avatar}
+                alt={currentUser.name}
+                className="w-10 h-10 rounded-xl object-cover ring-2 ring-emerald-500/40 shadow-xs shrink-0"
+              />
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white truncate">{currentUser.name}</p>
+                <span className="text-[10px] text-emerald-400 font-medium truncate block">
+                  Sesión activa iniciada ({currentUser.role === 'superadmin' ? 'Super Admin' : currentUser.role === 'admin' ? 'Administrador' : 'Cajero'})
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onNavigateToDashboard}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs shrink-0 flex items-center gap-1.5 cursor-pointer shadow-md transition-all"
+            >
+              <span>Ir a mi Panel</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Header Branding */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center p-3.5 bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 rounded-2xl shadow-xl shadow-indigo-500/20 mb-2.5">
@@ -454,7 +495,7 @@ export const Login: React.FC<LoginProps> = ({
             <button
               type="button"
               onClick={() => {
-                setMode('login');
+                switchMode('login');
                 setErrorMessage('');
                 setRegErrors({});
               }}
@@ -470,7 +511,7 @@ export const Login: React.FC<LoginProps> = ({
             <button
               type="button"
               onClick={() => {
-                setMode('register-supermarket');
+                switchMode('register-supermarket');
                 setErrorMessage('');
                 setSuccessNotice('');
               }}
@@ -482,7 +523,7 @@ export const Login: React.FC<LoginProps> = ({
             <button
               type="button"
               onClick={() => {
-                setMode('register-employee');
+                switchMode('register-employee');
                 setErrorMessage('');
                 setSuccessNotice('');
               }}
@@ -603,7 +644,7 @@ export const Login: React.FC<LoginProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setMode('register-supermarket');
+                      switchMode('register-supermarket');
                       setErrorMessage('');
                     }}
                     className="font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 hover:underline cursor-pointer"
@@ -1119,7 +1160,7 @@ export const Login: React.FC<LoginProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setMode('login');
+                      switchMode('login');
                       setRegErrors({});
                     }}
                     className="flex-1 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition-colors cursor-pointer"

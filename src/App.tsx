@@ -61,24 +61,89 @@ import {
   saveSupermarketToSupabase,
 } from './lib/supabase';
 import { CheckCircle2, AlertCircle, Info, ShieldAlert } from 'lucide-react';
+import {
+  getCurrentRoute,
+  navigateToRoute,
+  subscribeToRouteChanges,
+  normalizeRoute,
+  tabToRoute,
+  routeToTab,
+  isPublicRoute,
+  getStoredUser,
+  setStoredUser,
+} from './utils/router';
 
 export default function App() {
   const [users, setUsers] = useState<(User & { password: string })[]>(INITIAL_USERS);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => getStoredUser());
+  const [currentRoute, setCurrentRoute] = useState<string>(() => getCurrentRoute());
   const [supermarkets, setSupermarkets] = useState<Supermarket[]>(INITIAL_SUPERMARKETS);
   const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [movements, setMovements] = useState<InventoryMovement[]>(INITIAL_INVENTORY_MOVEMENTS);
   const [sales, setSales] = useState<Sale[]>(INITIAL_SALES);
   const [shiftClosures, setShiftClosures] = useState<ShiftClosure[]>([]);
-  const [activeTab, setActiveTab] = useState<string>('inicio');
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const initialRoute = getCurrentRoute();
+    const stored = getStoredUser();
+    if (!isPublicRoute(initialRoute)) {
+      return routeToTab(initialRoute, stored?.role);
+    }
+    return stored?.role === 'superadmin' ? 'supermercados' : 'inicio';
+  });
   const [sessionKey, setSessionKey] = useState<number>(0);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const [authView, setAuthView] = useState<'landing' | 'login' | 'register-supermarket'>('landing');
+  const [authView, setAuthView] = useState<'landing' | 'login' | 'register-supermarket' | 'register-employee'>(() => {
+    const initialRoute = getCurrentRoute();
+    if (initialRoute === '/login') return 'login';
+    if (initialRoute === '/registro-supermercado') return 'register-supermarket';
+    if (initialRoute === '/registro-empleado') return 'register-employee';
+    return 'landing';
+  });
   const [prefilledCredentials, setPrefilledCredentials] = useState<{ identifier?: string; password?: string }>({});
+
+  // Helper to navigate routes seamlessly
+  const navigate = (route: string) => {
+    navigateToRoute(route);
+    setCurrentRoute(normalizeRoute(route));
+  };
+
+  // Helper to change tab and update route
+  const handleSetActiveTab = (tab: string) => {
+    setActiveTab(tab);
+    const targetRoute = tabToRoute(tab, currentUser?.role);
+    navigate(targetRoute);
+  };
+
+  // Listen to browser URL / hash changes
+  useEffect(() => {
+    const unsubscribe = subscribeToRouteChanges((newRoute) => {
+      setCurrentRoute(newRoute);
+      if (isPublicRoute(newRoute)) {
+        if (newRoute === '/' || newRoute === '/landing') {
+          setAuthView('landing');
+        } else if (newRoute === '/registro-supermercado') {
+          setAuthView('register-supermarket');
+        } else if (newRoute === '/registro-empleado') {
+          setAuthView('register-employee');
+        } else {
+          setAuthView('login');
+        }
+      } else {
+        const tab = routeToTab(newRoute, currentUser?.role);
+        setActiveTab(tab);
+      }
+    });
+    return unsubscribe;
+  }, [currentUser?.role]);
+
+  // Keep currentUser persisted across sessions
+  useEffect(() => {
+    setStoredUser(currentUser);
+  }, [currentUser]);
 
   // Load all tables from Supabase on mount
   useEffect(() => {
@@ -117,7 +182,24 @@ export default function App() {
               password: u.password || existing?.password || 'admin123',
             });
           });
-          setUsers(Array.from(userMap.values()));
+          const updatedUsers = Array.from(userMap.values());
+          setUsers(updatedUsers);
+
+          // Keep current logged-in user synchronized
+          setCurrentUser((prev) => {
+            if (!prev) return null;
+            const match = updatedUsers.find((u) => u.id === prev.id || u.username === prev.username);
+            if (match) {
+              const { password: _, ...userFields } = match;
+              const syncedUser: User = {
+                ...userFields,
+                documentId: match.documentId || prev.documentId || '',
+              };
+              setStoredUser(syncedUser);
+              return syncedUser;
+            }
+            return prev;
+          });
         } else {
           setUsers(INITIAL_USERS);
         }
@@ -336,15 +418,24 @@ export default function App() {
   // Handle Login
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
+    setStoredUser(user);
     setIsProfileModalOpen(false);
     setIsSupabaseModalOpen(false);
     setIsMobileSidebarOpen(false);
     setSessionKey((prev) => prev + 1);
-    if (user.role === 'superadmin') {
+
+    const current = getCurrentRoute();
+    if (!isPublicRoute(current)) {
+      const targetTab = routeToTab(current, user.role);
+      setActiveTab(targetTab);
+      navigate(tabToRoute(targetTab, user.role));
+    } else if (user.role === 'superadmin') {
       setActiveTab('supermercados');
+      navigate('/supermercados');
       addToast(`¡Bienvenido Super Administrador, ${user.name}! Panel central SaaS activado.`, 'success');
     } else {
       setActiveTab('inicio');
+      navigate('/inicio');
       addToast(
         `¡Bienvenido(a), ${user.name}! Sesión iniciada como ${
           user.role === 'admin' ? 'Administrador' : 'Cajero'
@@ -357,12 +448,14 @@ export default function App() {
   // Handle Logout (Clean all temporary and transient states)
   const handleLogout = () => {
     setCurrentUser(null);
+    setStoredUser(null);
     setAuthView('landing');
     setActiveTab('inicio');
     setIsProfileModalOpen(false);
     setIsSupabaseModalOpen(false);
     setIsMobileSidebarOpen(false);
     setSessionKey((prev) => prev + 1);
+    navigate('/');
     addToast('Sesión cerrada correctamente.', 'info');
   };
 
@@ -1032,50 +1125,87 @@ export default function App() {
     );
   };
 
-  // Render Landing Page or Login screen if no active session
-  if (!currentUser) {
+  // Check if we should render public routes (Landing / Login / Register)
+  const isPublic = isPublicRoute(currentRoute);
+
+  if (isPublic && (!currentUser || currentRoute === '/' || currentRoute === '/landing' || currentRoute === '/login' || currentRoute === '/registro-supermercado' || currentRoute === '/registro-empleado')) {
+    const isLanding = currentRoute === '/' || currentRoute === '/landing' || (authView === 'landing' && isPublic);
+    const loginMode =
+      currentRoute === '/registro-supermercado' || authView === 'register-supermarket'
+        ? 'register-supermarket'
+        : currentRoute === '/registro-empleado' || authView === 'register-employee'
+        ? 'register-employee'
+        : 'login';
+
     return (
       <div className="font-sans antialiased text-slate-100 bg-slate-950 min-h-screen">
-        {authView === 'landing' ? (
+        {isLanding ? (
           <LandingPage
+            currentUser={currentUser}
+            onNavigateToDashboard={() => {
+              if (currentUser) {
+                const targetTab = currentUser.role === 'superadmin' ? 'supermercados' : 'inicio';
+                handleSetActiveTab(targetTab);
+              }
+            }}
             onNavigateToLogin={() => {
               setPrefilledCredentials({});
               setAuthView('login');
+              navigate('/login');
             }}
             onNavigateToRegisterSupermarket={() => {
               setPrefilledCredentials({});
               setAuthView('register-supermarket');
+              navigate('/registro-supermercado');
             }}
             onNavigateToRegisterEmployee={() => {
               setPrefilledCredentials({});
-              setAuthView('login');
+              setAuthView('register-employee');
+              navigate('/registro-empleado');
             }}
             supermarkets={supermarkets}
           />
         ) : (
           <Login
+            currentUser={currentUser}
+            onNavigateToDashboard={() => {
+              if (currentUser) {
+                const targetTab = currentUser.role === 'superadmin' ? 'supermercados' : 'inicio';
+                handleSetActiveTab(targetTab);
+              }
+            }}
             onLoginSuccess={handleLoginSuccess}
             users={users}
             employees={employees}
             supermarkets={supermarkets}
             onRegisterUser={handleRegisterUser}
             onRegisterSupermarket={handleRegisterSupermarket}
-            initialMode={authView === 'register-supermarket' ? 'register-supermarket' : 'login'}
+            initialMode={loginMode}
             initialIdentifier={prefilledCredentials.identifier || ''}
             initialPassword={prefilledCredentials.password || ''}
+            onModeChange={(mode) => {
+              if (mode === 'register-supermarket') {
+                navigate('/registro-supermercado');
+              } else if (mode === 'register-employee') {
+                navigate('/registro-empleado');
+              } else {
+                navigate('/login');
+              }
+            }}
             onBackToLanding={() => {
               setPrefilledCredentials({});
               setAuthView('landing');
+              navigate('/');
             }}
           />
         )}
 
         {/* Global Toast Notifications */}
-        <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm">
+        <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm pointer-events-none">
           {toasts.map((toast) => (
             <div
               key={toast.id}
-              className={`p-3.5 rounded-xl shadow-lg border flex items-center gap-3 text-sm animate-fadeIn ${
+              className={`p-3.5 rounded-xl shadow-lg border flex items-center gap-3 text-sm animate-fadeIn pointer-events-auto ${
                 toast.type === 'success'
                   ? 'bg-slate-900 text-slate-100 border-emerald-500/40 font-medium'
                   : toast.type === 'error'
@@ -1086,6 +1216,50 @@ export default function App() {
               {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />}
               {toast.type === 'error' && <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />}
               {toast.type === 'info' && <Info className="w-5 h-5 text-blue-400 shrink-0" />}
+              <span>{toast.message}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // If unauthenticated user tries to access protected app routes, show login view
+  if (!currentUser) {
+    return (
+      <div className="font-sans antialiased text-slate-100 bg-slate-950 min-h-screen">
+        <Login
+          onLoginSuccess={handleLoginSuccess}
+          users={users}
+          employees={employees}
+          supermarkets={supermarkets}
+          onRegisterUser={handleRegisterUser}
+          onRegisterSupermarket={handleRegisterSupermarket}
+          initialMode="login"
+          initialIdentifier=""
+          initialPassword=""
+          onModeChange={(mode) => {
+            if (mode === 'register-supermarket') {
+              navigate('/registro-supermercado');
+            } else if (mode === 'register-employee') {
+              navigate('/registro-empleado');
+            } else {
+              navigate('/login');
+            }
+          }}
+          onBackToLanding={() => {
+            setAuthView('landing');
+            navigate('/');
+          }}
+        />
+        {/* Global Toast Notifications */}
+        <div className="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm pointer-events-none">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className="p-3.5 rounded-xl shadow-lg border flex items-center gap-3 text-sm animate-fadeIn bg-slate-900 text-slate-100 border-slate-700 font-medium pointer-events-auto"
+            >
+              <Info className="w-5 h-5 text-blue-400 shrink-0" />
               <span>{toast.message}</span>
             </div>
           ))}
@@ -1186,7 +1360,7 @@ export default function App() {
         userAvatar={currentUser.avatar}
         supermarketName={userSupermarket?.name || currentUser.supermarketName}
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleSetActiveTab}
         onLogout={handleLogout}
         isOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
@@ -1243,16 +1417,16 @@ export default function App() {
             <AdminDashboard
               currentUser={currentUser}
               employees={scopedEmployees}
-              onNavigateToEmployees={() => setActiveTab('empleados')}
-              onNavigateToDashboard={() => setActiveTab('dashboard')}
+              onNavigateToEmployees={() => handleSetActiveTab('empleados')}
+              onNavigateToDashboard={() => handleSetActiveTab('dashboard')}
             />
           )}
 
           {currentUser.role !== 'superadmin' && activeTab === 'inicio' && currentUser.role === 'cajero' && (
             <CashierDashboard
               currentUser={currentUser}
-              onNavigateToSales={() => setActiveTab('ventas')}
-              onNavigateToShiftClosure={() => setActiveTab('cierre')}
+              onNavigateToSales={() => handleSetActiveTab('ventas')}
+              onNavigateToShiftClosure={() => handleSetActiveTab('cierre')}
             />
           )}
 
@@ -1375,7 +1549,7 @@ export default function App() {
                 La administración de empleados está reservada únicamente para el perfil de Administrador.
               </p>
               <button
-                onClick={() => setActiveTab('inicio')}
+                onClick={() => handleSetActiveTab('inicio')}
                 className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-sm transition-colors cursor-pointer"
               >
                 Volver a Inicio

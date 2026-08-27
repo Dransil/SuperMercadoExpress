@@ -218,38 +218,38 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
   // SUCCESS STATE VIEW
   if (isSubmittedSuccess) {
     return (
-      <div className="bg-white border border-slate-200 rounded-3xl p-8 sm:p-10 shadow-xl max-w-xl w-full text-center space-y-6 animate-fadeIn">
-        <div className="w-16 h-16 bg-amber-50 border border-amber-200 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 sm:p-10 shadow-2xl max-w-xl w-full text-center space-y-6 animate-fadeIn text-slate-100">
+        <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-full flex items-center justify-center mx-auto">
           <Clock className="w-8 h-8 animate-pulse" />
         </div>
 
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">
-            <Clock className="w-3.5 h-3.5" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 text-xs font-bold">
+            <Clock className="w-3.5 h-3.5 text-amber-400" />
             <span>Solicitud Pendiente de Revisión</span>
           </div>
-          <h2 className="text-2xl font-extrabold text-slate-900">
+          <h2 className="text-2xl font-black text-white tracking-tight">
             ¡Supermercado Registrado con Éxito!
           </h2>
-          <p className="text-sm text-slate-600 leading-relaxed max-w-md mx-auto">
-            La solicitud de registro para <strong className="text-slate-900">{registeredSmName}</strong> y su Administrador (<strong className="text-slate-900">{adminFullName}</strong>) ha sido enviada exitosamente.
+          <p className="text-sm text-slate-300 leading-relaxed max-w-md mx-auto">
+            La solicitud de registro para <strong className="text-white">{registeredSmName}</strong> y su Administrador (<strong className="text-white">{adminFullName}</strong>) ha sido enviada exitosamente.
           </p>
         </div>
 
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-left text-xs space-y-2 text-slate-600">
-          <div className="flex items-center gap-2 font-bold text-slate-800">
-            <ShieldCheck className="w-4 h-4 text-indigo-600" />
+        <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl text-left text-xs space-y-2 text-slate-300">
+          <div className="flex items-center gap-2 font-bold text-slate-100">
+            <ShieldCheck className="w-4 h-4 text-indigo-400" />
             <span>Paso Siguiente: Autorización del Super Administrador</span>
           </div>
-          <p className="leading-relaxed">
-            Por seguridad, el <strong>Super Administrador</strong> de la plataforma revisará la solicitud y activará la cuenta. Una vez aprobada, podrás iniciar sesión con tu correo: <strong className="text-slate-800">{adminEmail}</strong>.
+          <p className="leading-relaxed text-slate-400">
+            Por seguridad, el <strong className="text-slate-200">Super Administrador</strong> de la plataforma revisará la solicitud y activará la cuenta. Una vez aprobada, podrás iniciar sesión con tu correo: <strong className="text-slate-200">{adminEmail}</strong>.
           </p>
         </div>
 
         <button
           type="button"
           onClick={onBackToLogin}
-          className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
+          className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center justify-center gap-2"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Volver a Iniciar Sesión</span>
@@ -259,18 +259,18 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-xl max-w-2xl w-full space-y-6 animate-fadeIn">
+    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl max-w-2xl w-full space-y-6 animate-fadeIn text-slate-100">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-5">
+      <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-5">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Módulo 1: Registro SaaS de Supermercado</span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-xs font-bold">
+            <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Registro de Nuevo Supermercado</span>
           </div>
-          <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          <h2 className="text-2xl font-black text-white tracking-tight">
             Registrar mi Supermercado
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400">
             Ingresa los datos de tu supermercado y del Administrador responsable. La solicitud quedará pendiente de aprobación.
           </p>
         </div>
@@ -278,7 +278,7 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
         <button
           type="button"
           onClick={onBackToLogin}
-          className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer shrink-0"
+          className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors cursor-pointer shrink-0"
           title="Volver"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -287,8 +287,8 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
 
       {/* Error Message */}
       {errorMessage && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center gap-2.5 animate-shake">
-          <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+        <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-300 text-xs font-semibold flex items-center gap-2.5 animate-shake">
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
           <span>{errorMessage}</span>
         </div>
       )}
@@ -297,47 +297,47 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* SECCIÓN 1: DATOS DEL SUPERMERCADO */}
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-xs font-bold text-indigo-700 uppercase tracking-wider pb-1 border-b border-slate-100">
-            <Building2 className="w-4 h-4 text-indigo-600" />
+          <div className="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase tracking-wider pb-1 border-b border-slate-800">
+            <Building2 className="w-4 h-4 text-indigo-400" />
             <span>1. Datos del Supermercado</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Nombre del supermercado */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-700">
-                  Nombre del Supermercado <span className="text-rose-500">*</span>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-300">
+                  Nombre del Supermercado <span className="text-rose-400">*</span>
                 </label>
                 {supermarketName.trim() && (
                   <span
                     className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
                       smValidation.nameAvailable.available
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-rose-50 text-rose-700'
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
                     }`}
                   >
                     {smValidation.nameAvailable.available ? (
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                     ) : (
-                      <AlertCircle className="w-3 h-3 text-rose-600" />
+                      <AlertCircle className="w-3 h-3 text-rose-400" />
                     )}
                     {smValidation.nameAvailable.available ? 'Disponible' : 'Ya registrado'}
                   </span>
                 )}
               </div>
               <div className="relative">
-                <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Building2 className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   required
                   placeholder="Ej: Supermercado El Ahorro"
                   value={supermarketName}
                   onChange={(e) => setSupermarketName(e.target.value)}
-                  className={`w-full pl-9 pr-3 py-2 bg-slate-50 border rounded-xl text-xs focus:outline-none focus:ring-2 ${
+                  className={`w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all ${
                     supermarketName.trim() && !smValidation.nameAvailable.available
-                      ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500'
-                      : 'border-slate-200 focus:ring-indigo-500/20 focus:border-indigo-500'
+                      ? 'border-rose-500/80 focus:ring-rose-500 focus:border-rose-500'
+                      : 'border-slate-800 focus:ring-indigo-500 focus:border-indigo-500'
                   }`}
                 />
               </div>
@@ -345,39 +345,39 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
 
             {/* Correo del supermercado */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-700">
-                  Correo Electrónico Comercial <span className="text-rose-500">*</span>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-300">
+                  Correo Electrónico Comercial <span className="text-rose-400">*</span>
                 </label>
                 {supermarketEmail.trim() && (
                   <span
                     className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
                       smValidation.emailAvailable.available
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-rose-50 text-rose-700'
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
                     }`}
                   >
                     {smValidation.emailAvailable.available ? (
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                     ) : (
-                      <AlertCircle className="w-3 h-3 text-rose-600" />
+                      <AlertCircle className="w-3 h-3 text-rose-400" />
                     )}
                     {smValidation.emailAvailable.available ? 'Disponible' : 'Ya en uso'}
                   </span>
                 )}
               </div>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
                   required
                   placeholder="contacto@supermercado.com"
                   value={supermarketEmail}
                   onChange={(e) => setSupermarketEmail(e.target.value)}
-                  className={`w-full pl-9 pr-3 py-2 bg-slate-50 border rounded-xl text-xs focus:outline-none focus:ring-2 ${
+                  className={`w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all ${
                     supermarketEmail.trim() && !smValidation.emailAvailable.available
-                      ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500'
-                      : 'border-slate-200 focus:ring-indigo-500/20 focus:border-indigo-500'
+                      ? 'border-rose-500/80 focus:ring-rose-500 focus:border-rose-500'
+                      : 'border-slate-800 focus:ring-indigo-500 focus:border-indigo-500'
                   }`}
                 />
               </div>
@@ -385,36 +385,36 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
 
             {/* Teléfono del supermercado */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Teléfono del Supermercado <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                Teléfono del Supermercado <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Phone className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="tel"
                   required
                   placeholder="+591 70000000"
                   value={supermarketPhone}
                   onChange={(e) => setSupermarketPhone(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                 />
               </div>
             </div>
 
             {/* Dirección del supermercado */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Dirección Comercial <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                Dirección Comercial <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <MapPin className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   required
                   placeholder="Av. Principal #123, Zona Centro"
                   value={supermarketAddress}
                   onChange={(e) => setSupermarketAddress(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                 />
               </div>
             </div>
@@ -423,21 +423,21 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
 
         {/* SECCIÓN 2: DATOS DEL ADMINISTRADOR */}
         <div className="space-y-4 pt-2">
-          <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 uppercase tracking-wider">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span>2. Datos del Administrador Asignado</span>
             </div>
-            <span className="text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full font-medium">
-              Rol fijado: Administrador
+            <span className="text-[11px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-medium">
+              Rol: Administrador
             </span>
           </div>
 
-          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-600 flex items-center gap-2.5">
-            <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg shrink-0">
+          <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-300 flex items-center gap-2.5">
+            <div className="p-1.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-lg shrink-0">
               <UserIcon className="w-4 h-4" />
             </div>
-            <p className="text-[11px] leading-relaxed">
+            <p className="text-[11px] leading-relaxed text-slate-400">
               La fotografía de perfil del administrador podrá ser personalizada y editada posteriormente desde su perfil de usuario al iniciar sesión.
             </p>
           </div>
@@ -445,192 +445,192 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Nombre Completo */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Nombre Completo del Administrador <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                Nombre Completo del Administrador <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <UserIcon className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   required
                   placeholder="Ej: Mario Andrés Rojas"
                   value={adminFullName}
                   onChange={(e) => setAdminFullName(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                 />
               </div>
             </div>
 
             {/* Nombre de Usuario */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-700">
-                  Nombre de Usuario (Login) <span className="text-rose-500">*</span>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-300">
+                  Nombre de Usuario (Login) <span className="text-rose-400">*</span>
                 </label>
                 {usernameCheck && (
                   <span
                     className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
                       usernameCheck.available
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-rose-50 text-rose-700'
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
                     }`}
                   >
                     {usernameCheck.available ? (
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                     ) : (
-                      <AlertCircle className="w-3 h-3 text-rose-600" />
+                      <AlertCircle className="w-3 h-3 text-rose-400" />
                     )}
                     {usernameCheck.available ? 'Disponible' : 'Ya en uso'}
                   </span>
                 )}
               </div>
               <div className="relative">
-                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   required
                   placeholder="Ej: mrojas"
                   value={adminUsername}
                   onChange={(e) => setAdminUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
-                  className={`w-full pl-9 pr-3 py-2 bg-slate-50 border rounded-xl text-xs focus:outline-none focus:ring-2 ${
+                  className={`w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all ${
                     usernameCheck && !usernameCheck.available
-                      ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500'
-                      : 'border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500'
+                      ? 'border-rose-500/80 focus:ring-rose-500 focus:border-rose-500'
+                      : 'border-slate-800 focus:ring-emerald-500 focus:border-emerald-500'
                   }`}
                 />
               </div>
               {usernameCheck && !usernameCheck.available && (
-                <p className="text-[10px] text-rose-600 mt-1 font-semibold">{usernameCheck.message}</p>
+                <p className="text-[10px] text-rose-400 mt-1 font-semibold">{usernameCheck.message}</p>
               )}
             </div>
 
             {/* Documento de Identidad */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Documento de Identidad (CI / DNI) <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                Documento de Identidad (CI / DNI) <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <IdCard className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <IdCard className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   required
                   placeholder="Ej: 10482910"
                   value={adminDocumentId}
                   onChange={(e) => setAdminDocumentId(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                 />
               </div>
             </div>
 
             {/* Correo Electrónico del Admin */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-700">
-                  Correo Electrónico Personal <span className="text-rose-500">*</span>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-300">
+                  Correo Electrónico Personal <span className="text-rose-400">*</span>
                 </label>
                 {adminEmailCheck && (
                   <span
                     className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1 ${
                       adminEmailCheck.available
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-rose-50 text-rose-700'
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
                     }`}
                   >
                     {adminEmailCheck.available ? (
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                     ) : (
-                      <AlertCircle className="w-3 h-3 text-rose-600" />
+                      <AlertCircle className="w-3 h-3 text-rose-400" />
                     )}
                     {adminEmailCheck.available ? 'Disponible' : 'Ya en uso'}
                   </span>
                 )}
               </div>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
                   required
                   placeholder="admin@personal.com"
                   value={adminEmail}
                   onChange={handleAdminEmailChange}
-                  className={`w-full pl-9 pr-3 py-2 bg-slate-50 border rounded-xl text-xs focus:outline-none focus:ring-2 ${
+                  className={`w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all ${
                     adminEmailCheck && !adminEmailCheck.available
-                      ? 'border-rose-400 focus:ring-rose-500/20 focus:border-rose-500'
-                      : 'border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500'
+                      ? 'border-rose-500/80 focus:ring-rose-500 focus:border-rose-500'
+                      : 'border-slate-800 focus:ring-emerald-500 focus:border-emerald-500'
                   }`}
                 />
               </div>
               {adminEmailCheck && !adminEmailCheck.available && (
-                <p className="text-[10px] text-rose-600 mt-1 font-semibold">{adminEmailCheck.message}</p>
+                <p className="text-[10px] text-rose-400 mt-1 font-semibold">{adminEmailCheck.message}</p>
               )}
             </div>
 
             {/* Teléfono del Admin */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Teléfono Personal del Administrador <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                Teléfono Personal del Administrador <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Phone className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="tel"
                   required
                   placeholder="+591 71234567"
                   value={adminPhone}
                   onChange={(e) => setAdminPhone(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                 />
               </div>
             </div>
 
             {/* Dirección del Admin */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Dirección de Residencia <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                Dirección de Residencia <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <MapPin className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   required
                   placeholder="Calle Los Álamos #456"
                   value={adminAddress}
                   onChange={(e) => setAdminAddress(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                 />
               </div>
             </div>
 
             {/* Fecha de Nacimiento */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Fecha de Nacimiento <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                Fecha de Nacimiento <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Calendar className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="date"
                   required
                   value={adminBirthDate}
                   onChange={(e) => setAdminBirthDate(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all [color-scheme:dark]"
                 />
               </div>
             </div>
 
             {/* Fecha de Contratación */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Fecha de Contratación / Inicio <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                Fecha de Contratación / Inicio <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Calendar className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="date"
                   required
                   value={adminHireDate}
                   onChange={(e) => setAdminHireDate(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all [color-scheme:dark]"
                 />
               </div>
             </div>
@@ -639,23 +639,24 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
           {/* Passwords */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Contraseña de Acceso <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                Contraseña de Acceso <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
                   placeholder="Mínimo 4 caracteres"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
-                  className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -663,23 +664,24 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Confirmar Contraseña <span className="text-rose-500">*</span>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                Confirmar Contraseña <span className="text-rose-400">*</span>
               </label>
               <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
                   required
                   placeholder="Repite la contraseña"
                   value={adminConfirmPassword}
                   onChange={(e) => setAdminConfirmPassword(e.target.value)}
-                  className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                  aria-label={showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
                   {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -689,11 +691,11 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
         </div>
 
         {/* Notice of Approval Requirement */}
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-amber-900 text-xs">
-          <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-3 text-amber-200 text-xs">
+          <Clock className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
           <div>
-            <p className="font-bold text-amber-950">Aviso de Revisión y Estado Inicial</p>
-            <p className="mt-0.5 leading-relaxed text-amber-800">
+            <p className="font-bold text-amber-300">Aviso de Revisión y Estado Inicial</p>
+            <p className="mt-0.5 leading-relaxed text-amber-200/90">
               Al enviar este formulario, tu supermercado y el usuario Administrador quedarán registrados en estado <strong>PENDIENTE</strong>. Podrás ingresar al sistema una vez que el Super Administrador revise y autorice tu solicitud.
             </p>
           </div>
@@ -704,14 +706,14 @@ export const SupermarketRegisterForm: React.FC<SupermarketRegisterFormProps> = (
           <button
             type="button"
             onClick={onBackToLogin}
-            className="w-full sm:w-auto px-5 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+            className="w-full sm:w-auto px-5 py-2.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors cursor-pointer border border-slate-800"
           >
             Cancelar y Volver
           </button>
 
           <button
             type="submit"
-            className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-200 transition-all cursor-pointer flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:from-indigo-700 active:to-indigo-800 text-white font-bold text-sm rounded-xl shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center justify-center gap-2"
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>Enviar Solicitud de Registro</span>
