@@ -456,17 +456,18 @@ export default function App() {
   // ==========================================
 
   // Register a new Supermarket + its Admin (Initial status: 'pendiente')
-  const handleRegisterSupermarket = (newSupermarket: Supermarket, adminPassword: string) => {
+  const handleRegisterSupermarket = async (newSupermarket: Supermarket, adminPassword: string) => {
     // 1. Add supermarket to state
     setSupermarkets((prev) => [newSupermarket, ...prev]);
-    saveSupermarketToSupabase(newSupermarket);
+    await saveSupermarketToSupabase(newSupermarket);
 
     // 2. Generate username from admin email
     const username = newSupermarket.adminEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+    const adminEmployeeId = `emp-${newSupermarket.adminId}`;
 
     // 3. Create Admin User (status: 'pendiente')
     const newAdminUser: User & { password: string } = {
-      id: newSupermarket.adminId,
+      id: newSupermarket.adminId || `u-admin-${Date.now()}`,
       username: username || `admin_${Date.now()}`,
       email: newSupermarket.adminEmail,
       name: newSupermarket.adminName,
@@ -482,14 +483,15 @@ export default function App() {
       cargo: 'Administrador General',
       supermarketId: newSupermarket.id,
       supermarketName: newSupermarket.name,
+      employeeId: adminEmployeeId,
     };
 
     setUsers((prev) => [newAdminUser, ...prev]);
-    saveUserToSupabase(newAdminUser);
+    await saveUserToSupabase(newAdminUser);
 
     // 4. Create Employee record for the Admin (status: 'pendiente')
     const newAdminEmployee: Employee = {
-      id: `emp-${newSupermarket.adminId}`,
+      id: adminEmployeeId,
       fullName: newSupermarket.adminName,
       documentId: newSupermarket.adminDocumentId,
       phone: newSupermarket.adminPhone,
@@ -502,10 +504,13 @@ export default function App() {
       role: 'admin',
       status: 'pendiente',
       supermarketId: newSupermarket.id,
+      supermarketName: newSupermarket.name,
+      userId: newAdminUser.id,
+      registrationDate: new Date().toISOString().split('T')[0],
     };
 
     setEmployees((prev) => [newAdminEmployee, ...prev]);
-    saveEmployeeToSupabase(newAdminEmployee);
+    await saveEmployeeToSupabase(newAdminEmployee);
 
     addToast(
       `Solicitud de registro enviada para "${newSupermarket.name}". Estado: Pendiente de revisión.`,
@@ -514,7 +519,7 @@ export default function App() {
   };
 
   // Super Admin: Direct creation of Supermarket + Verified Admin User + Employee
-  const handleCreateSupermarketBySuperAdmin = (
+  const handleCreateSupermarketBySuperAdmin = async (
     newSupermarket: Supermarket,
     adminUser: User & { password: string },
     adminEmployee: Employee
@@ -524,21 +529,25 @@ export default function App() {
       newSupermarket,
       ...prev.filter((s) => s.id !== newSupermarket.id),
     ]);
-    saveSupermarketToSupabase(newSupermarket);
+    await saveSupermarketToSupabase(newSupermarket);
 
-    // 2. Add admin user to state and database
+    // 2. Link IDs mutually
+    const linkedUser = { ...adminUser, employeeId: adminEmployee.id };
+    const linkedEmployee = { ...adminEmployee, userId: adminUser.id };
+
+    // 3. Add admin user to state and database
     setUsers((prev) => [
-      adminUser,
-      ...prev.filter((u) => u.id !== adminUser.id && u.username !== adminUser.username),
+      linkedUser,
+      ...prev.filter((u) => u.id !== linkedUser.id && u.username !== linkedUser.username),
     ]);
-    saveUserToSupabase(adminUser);
+    await saveUserToSupabase(linkedUser);
 
-    // 3. Add employee record to state and database
+    // 4. Add employee record to state and database
     setEmployees((prev) => [
-      adminEmployee,
-      ...prev.filter((e) => e.id !== adminEmployee.id),
+      linkedEmployee,
+      ...prev.filter((e) => e.id !== linkedEmployee.id),
     ]);
-    saveEmployeeToSupabase(adminEmployee);
+    await saveEmployeeToSupabase(linkedEmployee);
 
     addToast(
       `Supermercado "${newSupermarket.name}" y Administrador "${adminUser.name}" creados y verificados exitosamente.`,
@@ -753,7 +762,7 @@ export default function App() {
   // EMPLOYEE / USER CRUD HANDLERS
   // ==========================================
 
-  const handleAddEmployee = (
+  const handleAddEmployee = async (
     newEmpData: Omit<Employee, 'id'>,
     accessAccount?: { username: string; password: string; createAccount: boolean }
   ) => {
@@ -761,7 +770,7 @@ export default function App() {
     const enforcedSupermarketId = currentUser?.supermarketId || newEmpData.supermarketId;
     const enforcedSupermarketName = currentUser?.supermarketName || newEmpData.supermarketName;
 
-    const newEmpId = `emp-${String(employees.length + 1).padStart(3, '0')}`;
+    const newEmpId = `emp-${Date.now()}`;
     const cleanEmail = newEmpData.email.trim().toLowerCase();
 
     const newEmployee: Employee = {
@@ -811,11 +820,11 @@ export default function App() {
         );
         return [newUser, ...filtered];
       });
-      saveUserToSupabase(newUser);
+      await saveUserToSupabase(newUser);
     }
 
     setEmployees((prev) => [newEmployee, ...prev]);
-    saveEmployeeToSupabase(newEmployee);
+    await saveEmployeeToSupabase(newEmployee);
     addToast(
       `Empleado "${newEmployee.fullName}" registrado exitosamente en ${enforcedSupermarketName || 'el supermercado'}.`,
       'success'
@@ -1042,6 +1051,7 @@ export default function App() {
       status: 'pendiente',
       supermarketId: data.supermarketId,
       supermarketName: data.supermarketName,
+      userId: newUserId,
       registrationDate: new Date().toISOString().split('T')[0],
     };
 
@@ -1067,11 +1077,13 @@ export default function App() {
       supermarketName: data.supermarketName,
     };
 
-    setEmployees((prev) => [newEmployee, ...prev]);
     setUsers((prev) => [newUser, ...prev]);
+    setEmployees((prev) => [newEmployee, ...prev]);
 
-    saveEmployeeToSupabase(newEmployee);
-    saveUserToSupabase(newUser);
+    // Save user first, then employee to satisfy DB constraints
+    saveUserToSupabase(newUser).then(() => {
+      saveEmployeeToSupabase(newEmployee);
+    });
 
     return {
       success: true,
@@ -1080,7 +1092,7 @@ export default function App() {
   };
 
   // User Registration Authorization Handler (by Admin)
-  const handleAuthorizeUser = (employeeId: string, assignedRole: UserRole) => {
+  const handleAuthorizeUser = async (employeeId: string, assignedRole: UserRole) => {
     // 1. Update Employee
     const targetEmp = employees.find((e) => e.id === employeeId);
     if (targetEmp) {
@@ -1092,7 +1104,7 @@ export default function App() {
       setEmployees((prev) =>
         prev.map((emp) => (emp.id === employeeId ? updatedEmp : emp))
       );
-      saveEmployeeToSupabase(updatedEmp);
+      await saveEmployeeToSupabase(updatedEmp);
     }
 
     // 2. Update linked User
@@ -1100,6 +1112,7 @@ export default function App() {
       prev.map((u) => {
         if (
           u.employeeId === employeeId ||
+          (targetEmp && u.id === targetEmp.userId) ||
           (targetEmp && u.email.toLowerCase() === targetEmp.email.toLowerCase())
         ) {
           const updatedUser = {
@@ -1123,7 +1136,7 @@ export default function App() {
   };
 
   // User Registration Rejection Handler (by Admin)
-  const handleRejectUser = (employeeId: string) => {
+  const handleRejectUser = async (employeeId: string) => {
     // 1. Update Employee
     const targetEmp = employees.find((e) => e.id === employeeId);
     if (targetEmp) {
@@ -1131,7 +1144,7 @@ export default function App() {
       setEmployees((prev) =>
         prev.map((emp) => (emp.id === employeeId ? updatedEmp : emp))
       );
-      saveEmployeeToSupabase(updatedEmp);
+      await saveEmployeeToSupabase(updatedEmp);
     }
 
     // 2. Update linked User
@@ -1139,6 +1152,7 @@ export default function App() {
       prev.map((u) => {
         if (
           u.employeeId === employeeId ||
+          (targetEmp && u.id === targetEmp.userId) ||
           (targetEmp && u.email.toLowerCase() === targetEmp.email.toLowerCase())
         ) {
           const updatedUser = { ...u, status: 'rechazado' as const };

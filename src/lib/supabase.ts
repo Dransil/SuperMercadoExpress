@@ -638,54 +638,96 @@ export async function saveShiftClosureToSupabase(closure: ShiftClosure): Promise
   }
 }
 
-export async function saveUserToSupabase(user: User & { password?: string }): Promise<void> {
+export async function saveUserToSupabase(user: User & { password?: string }): Promise<boolean> {
   try {
-    await supabase.from('users').upsert({
+    const payload = {
       id: user.id,
       username: user.username,
-      email: user.email,
+      email: user.email.toLowerCase().trim(),
       name: user.name,
-      role: user.role,
-      avatar: user.avatar,
-      document_id: user.documentId,
-      employee_id: user.employeeId,
-      supermarket_id: user.supermarketId,
-      supermarket_name: user.supermarketName,
-      password: user.password || 'admin123',
-      status: user.status,
-      phone: user.phone,
-      address: user.address,
-      birth_date: user.birthDate,
-      hire_date: user.hireDate,
-      cargo: user.cargo,
-    });
+      role: user.role || 'cajero',
+      avatar: user.avatar || null,
+      document_id: user.documentId || null,
+      employee_id: user.employeeId?.trim() || null,
+      supermarket_id: user.supermarketId?.trim() || null,
+      supermarket_name: user.supermarketName?.trim() || null,
+      password: user.password || 'cajero123',
+      status: user.status || 'activo',
+      phone: user.phone || null,
+      address: user.address || null,
+      birth_date: user.birthDate || null,
+      hire_date: user.hireDate || null,
+      cargo: user.cargo || null,
+    };
+
+    const { error } = await supabase.from('users').upsert(payload);
+    if (error) {
+      console.warn('Error syncing user to Supabase:', error);
+      // If foreign key violation on supermarket_id, fallback with null supermarket_id
+      if (error.code === '23503') {
+        const { error: retryError } = await supabase.from('users').upsert({
+          ...payload,
+          supermarket_id: null,
+        });
+        if (retryError) {
+          console.error('Retry saveUserToSupabase failed:', retryError);
+          return false;
+        }
+        return true;
+      }
+      return false;
+    }
+    return true;
   } catch (e) {
-    console.warn('Error syncing user to Supabase:', e);
+    console.warn('Exception syncing user to Supabase:', e);
+    return false;
   }
 }
 
-export async function saveEmployeeToSupabase(employee: Employee): Promise<void> {
+export async function saveEmployeeToSupabase(employee: Employee): Promise<boolean> {
   try {
-    await supabase.from('employees').upsert({
+    const payload = {
       id: employee.id,
       full_name: employee.fullName,
       document_id: employee.documentId,
-      phone: employee.phone,
-      address: employee.address,
-      email: employee.email,
-      birth_date: employee.birthDate,
-      hire_date: employee.hireDate,
-      role: employee.role,
-      photo: employee.photo,
-      status: employee.status,
-      supermarket_id: employee.supermarketId,
-      supermarket_name: employee.supermarketName,
-      cargo: employee.cargo,
-      registration_date: employee.registrationDate,
-      user_id: employee.userId,
-    });
+      phone: employee.phone || null,
+      address: employee.address || null,
+      email: employee.email ? employee.email.toLowerCase().trim() : null,
+      birth_date: employee.birthDate || null,
+      hire_date: employee.hireDate || null,
+      role: employee.role || 'cajero',
+      photo: employee.photo || null,
+      status: employee.status || 'activo',
+      supermarket_id: employee.supermarketId?.trim() || null,
+      supermarket_name: employee.supermarketName?.trim() || null,
+      cargo: employee.cargo || null,
+      registration_date: employee.registrationDate || null,
+      user_id: employee.userId?.trim() || null,
+    };
+
+    const { error } = await supabase.from('employees').upsert(payload);
+    if (error) {
+      console.warn('Error syncing employee to Supabase:', error);
+      // If foreign key constraint failed (e.g. user_id or supermarket_id not yet created)
+      if (error.code === '23503') {
+        const fallbackPayload = {
+          ...payload,
+          user_id: null,
+          supermarket_id: null,
+        };
+        const { error: retryError } = await supabase.from('employees').upsert(fallbackPayload);
+        if (retryError) {
+          console.error('Retry saveEmployeeToSupabase failed:', retryError);
+          return false;
+        }
+        return true;
+      }
+      return false;
+    }
+    return true;
   } catch (e) {
-    console.warn('Error syncing employee to Supabase:', e);
+    console.warn('Exception syncing employee to Supabase:', e);
+    return false;
   }
 }
 
