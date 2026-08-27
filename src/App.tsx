@@ -521,6 +521,39 @@ export default function App() {
     );
   };
 
+  // Super Admin: Direct creation of Supermarket + Verified Admin User + Employee
+  const handleCreateSupermarketBySuperAdmin = (
+    newSupermarket: Supermarket,
+    adminUser: User & { password: string },
+    adminEmployee: Employee
+  ) => {
+    // 1. Add supermarket to state and database
+    setSupermarkets((prev) => [
+      newSupermarket,
+      ...prev.filter((s) => s.id !== newSupermarket.id),
+    ]);
+    saveSupermarketToSupabase(newSupermarket);
+
+    // 2. Add admin user to state and database
+    setUsers((prev) => [
+      adminUser,
+      ...prev.filter((u) => u.id !== adminUser.id && u.username !== adminUser.username),
+    ]);
+    saveUserToSupabase(adminUser);
+
+    // 3. Add employee record to state and database
+    setEmployees((prev) => [
+      adminEmployee,
+      ...prev.filter((e) => e.id !== adminEmployee.id),
+    ]);
+    saveEmployeeToSupabase(adminEmployee);
+
+    addToast(
+      `Supermercado "${newSupermarket.name}" y Administrador "${adminUser.name}" creados y verificados exitosamente.`,
+      'success'
+    );
+  };
+
   // Super Admin: Approve Supermarket and activate its Admin with authorized access period
   const handleApproveSupermarket = (
     supermarketId: string,
@@ -1403,10 +1436,13 @@ export default function App() {
           {currentUser.role === 'superadmin' && (
             <SuperAdminPanel
               supermarkets={supermarkets}
+              existingUsers={users}
+              existingEmployees={employees}
               onApproveSupermarket={handleApproveSupermarket}
               onRejectSupermarket={handleRejectSupermarket}
               onSaveAccessPeriod={handleSaveAccessPeriod}
               onDeactivateSupermarket={handleDeactivateSupermarket}
+              onCreateSupermarket={handleCreateSupermarketBySuperAdmin}
               showToast={addToast}
               referenceDate={getTodayIsoString()}
             />
