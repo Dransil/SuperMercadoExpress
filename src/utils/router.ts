@@ -24,9 +24,9 @@ const USER_SESSION_KEY = 'supermarket_pos_current_user';
 export function normalizeRoute(raw: string): string {
   let cleaned = raw.trim();
 
-  // If it's a hash like '#/ventas' or '#ventas'
-  if (cleaned.startsWith('#')) {
-    cleaned = cleaned.replace(/^#\/?/, '/');
+  // If it contains a pathname with a hash like '/supermercados#supermercados'
+  if (cleaned.includes('#')) {
+    cleaned = cleaned.split('#')[0];
   }
 
   // Strip trailing slashes unless it is root '/'
@@ -55,32 +55,31 @@ export function normalizeRoute(raw: string): string {
 }
 
 /**
- * Gets the current route from window.location (checking hash first, then pathname).
+ * Gets the current route from window.location (checking pathname first, then hash).
  */
 export function getCurrentRoute(): string {
   if (typeof window === 'undefined') return '/';
-
-  const hash = window.location.hash;
-  if (hash && hash.length > 1) {
-    return normalizeRoute(hash);
-  }
 
   const pathname = window.location.pathname;
   if (pathname && pathname !== '/') {
     return normalizeRoute(pathname);
   }
 
+  const hash = window.location.hash;
+  if (hash && hash.length > 1) {
+    return normalizeRoute(hash.replace(/^#\/?/, '/'));
+  }
+
   return '/';
 }
 
 /**
- * Navigates to a route and updates both HTML5 history and hash for 100% iframe/browser compatibility.
+ * Navigates to a route using standard HTML5 history (clean pathname URL).
  */
 export function navigateToRoute(route: string, replace: boolean = false) {
   if (typeof window === 'undefined') return;
 
   const normalized = normalizeRoute(route);
-  const hashTarget = normalized === '/' ? '' : '#' + normalized.replace(/^\//, '');
 
   try {
     if (replace) {
@@ -89,16 +88,16 @@ export function navigateToRoute(route: string, replace: boolean = false) {
       window.history.pushState(null, '', normalized);
     }
   } catch {
-    // If pushState is restricted by iframe sandbox, fallback to hash
+    // If pushState is restricted (e.g. sandbox iframe), fallback to hash
+    window.location.hash = normalized === '/' ? '' : '#' + normalized.replace(/^\//, '');
   }
 
-  // Also sync hash so preview environments without path rewrite work consistently
-  if (window.location.hash !== hashTarget && (hashTarget !== '' || window.location.hash !== '')) {
-    if (hashTarget === '') {
-      // Remove hash without scroll jump
-      history.replaceState(null, '', window.location.pathname + window.location.search);
-    } else {
-      window.location.hash = hashTarget;
+  // Clean any leftover duplicate hash from window.location
+  if (window.location.hash && window.history.replaceState) {
+    try {
+      window.history.replaceState(null, '', normalized);
+    } catch {
+      // ignore
     }
   }
 
