@@ -548,6 +548,22 @@ export async function saveEmployeeToSupabase(employee: Employee): Promise<void> 
   }
 }
 
+export async function deleteEmployeeFromSupabase(employeeId: string): Promise<void> {
+  try {
+    await supabase.from('employees').delete().eq('id', employeeId);
+  } catch (e) {
+    console.warn('Error deleting employee from Supabase:', e);
+  }
+}
+
+export async function deleteUserFromSupabase(userId: string): Promise<void> {
+  try {
+    await supabase.from('users').delete().eq('id', userId);
+  } catch (e) {
+    console.warn('Error deleting user from Supabase:', e);
+  }
+}
+
 export async function saveSupermarketToSupabase(supermarket: Supermarket): Promise<void> {
   try {
     await supabase.from('supermarkets').upsert({

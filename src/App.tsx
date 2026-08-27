@@ -57,7 +57,9 @@ import {
   saveMovementToSupabase,
   saveShiftClosureToSupabase,
   saveUserToSupabase,
+  deleteUserFromSupabase,
   saveEmployeeToSupabase,
+  deleteEmployeeFromSupabase,
   saveSupermarketToSupabase,
 } from './lib/supabase';
 import { CheckCircle2, AlertCircle, Info, ShieldAlert } from 'lucide-react';
@@ -847,6 +849,11 @@ export default function App() {
   const handleDeleteEmployee = (id: string) => {
     const empToDelete = employees.find((e) => e.id === id);
     setEmployees((prev) => prev.filter((emp) => emp.id !== id));
+    deleteEmployeeFromSupabase(id);
+    if (empToDelete?.userId) {
+      setUsers((prev) => prev.filter((u) => u.id !== empToDelete.userId));
+      deleteUserFromSupabase(empToDelete.userId);
+    }
     addToast(`Empleado "${empToDelete?.fullName || 'seleccionado'}" ha sido eliminado.`, 'info');
   };
 

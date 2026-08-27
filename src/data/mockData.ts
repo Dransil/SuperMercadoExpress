@@ -76,7 +76,24 @@ export const INITIAL_USERS: (User & { password: string })[] = [
 
 export const INITIAL_SUPERMARKETS: Supermarket[] = [];
 
-export const INITIAL_EMPLOYEES: Employee[] = [];
+export const INITIAL_EMPLOYEES: Employee[] = [
+  {
+    id: 'emp-superadmin',
+    fullName: 'Emanuel Taquichiri',
+    documentId: '0000000000',
+    phone: '+591 70000000',
+    address: 'Oficina Central SaaS',
+    email: 'thecobra1783@gmail.com',
+    birthDate: '1995-01-01',
+    hireDate: '2024-01-01',
+    role: 'superadmin',
+    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250',
+    status: 'activo',
+    cargo: 'Super Administrador Plataforma',
+    registrationDate: '2024-01-01',
+    userId: 'u-superadmin',
+  },
+];
 
 export const INITIAL_PRODUCTS: Product[] = [];
 
